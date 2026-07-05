@@ -5,6 +5,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Game.Rulesets.BigAssCircle.UI;
+using osu.Framework.Utils;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
 using osuTK;
@@ -42,7 +43,7 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
     private const int segments_per_link = 24;
 
     [Resolved]
-    private BigAssCircleScrollingHitObjectContainer scrollingContainer { get; set; }
+    private BigAssCircleScrollingHitObjectContainer scrollingContainer { get; set; } = null!;
 
     private readonly Container<Box> pathLinesContainer = new()
     {
@@ -64,7 +65,17 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
     private double[] nodeTimes = Array.Empty<double>();
     private float[] nodeRadii = Array.Empty<float>();
 
-    public DrawableBacPath(BacPathStartHitObject hitObject = null)
+    // Angular sweep rate (dθ/dtime, radians per ms) at each node — the Catmull-Rom tangents used to
+    // smooth the angle interpolation so the sweep velocity is continuous through nodes.
+    private float[] nodeThetaSlopes = Array.Empty<float>();
+
+    // Per-link interpolation, taken from the control point at each link's end node (a control point
+    // governs the segment leading into it). Off / Easing.None by default, so a link keeps exact linear
+    // geometry unless its control point opts in. Indexed by link i = node[i] -> node[i + 1].
+    private bool[] linkSmooth = Array.Empty<bool>();
+    private Easing[] linkEasing = Array.Empty<Easing>();
+
+    public DrawableBacPath(BacPathStartHitObject? hitObject = null)
         : base(hitObject)
     {
         // Fill the container so our local space matches it 1:1: the centre is DrawSize / 2 and radii
@@ -103,26 +114,42 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
     private void rebuildNodes()
     {
         var start = HitObject;
-        int count = 1 + start.Path.ControlPoints.Count;
+        var controlPoints = start.Path.ControlPoints;
+        int linkCount = controlPoints.Count;
+        int count = 1 + linkCount;
 
         nodeRadians = new float[count];
         nodeTimes = new double[count];
         nodeRadii = new float[count];
+        nodeThetaSlopes = new float[count];
+        linkSmooth = new bool[linkCount];
+        linkEasing = new Easing[linkCount];
 
         // Node 0 is the start node itself.
         nodeRadians[0] = toRadians(start.DirectionDeg);
         nodeTimes[0] = start.StartTime;
 
-        if (start.Path == null)
-            return;
-
-        int i = 1;
-
-        foreach (var controlPoint in start.Path.ControlPoints)
+        for (int i = 0; i < linkCount; i++)
         {
-            nodeRadians[i] = toRadians(start.DirectionDeg + controlPoint.RotationOffset);
-            nodeTimes[i] = start.StartTime + controlPoint.TimeOffset;
-            i++;
+            var controlPoint = controlPoints[i];
+
+            nodeRadians[i + 1] = toRadians(start.DirectionDeg + controlPoint.RotationOffset);
+            nodeTimes[i + 1] = start.StartTime + controlPoint.TimeOffset;
+
+            // A control point governs the segment leading into it: link[i] ends at node[i + 1] = CP[i].
+            linkSmooth[i] = controlPoint.Smooth;
+            linkEasing[i] = controlPoint.SweepEasing;
+        }
+
+        // Catmull-Rom tangents: centred difference of angle over time for interior nodes, one-sided at
+        // the ends (the Min/Max clamps collapse the difference to the single available neighbour).
+        for (int n = 0; n < count; n++)
+        {
+            int lo = Math.Max(0, n - 1);
+            int hi = Math.Min(count - 1, n + 1);
+            double dt = nodeTimes[hi] - nodeTimes[lo];
+
+            nodeThetaSlopes[n] = dt > 0 ? (float)((nodeRadians[hi] - nodeRadians[lo]) / dt) : 0f;
         }
     }
 
@@ -162,15 +189,12 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
                 if (!clipToBand(rA, rB, ringRadius, out float tLo, out float tHi))
                     continue;
 
-                float thetaA = nodeRadians[i];
-                float thetaB = nodeRadians[i + 1];
-
-                Vector2 previous = pointAt(centre, thetaA, thetaB, rA, rB, tLo);
+                Vector2 previous = pointAt(centre, i, rA, rB, tLo);
 
                 for (int k = 1; k <= segments_per_link; k++)
                 {
                     float t = tLo + (tHi - tLo) * ((float)k / segments_per_link);
-                    Vector2 next = pointAt(centre, thetaA, thetaB, rA, rB, t);
+                    Vector2 next = pointAt(centre, i, rA, rB, t);
 
                     updateSegment(getBox(visible++), previous, next);
 
@@ -244,9 +268,46 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
     private static Vector2 polarToCartesian(float radians, float radius)
         => new Vector2(MathF.Sin(radians) * radius, MathF.Cos(radians) * radius);
 
-    // Point at parameter t along a link, interpolating both angle and radius in polar space.
-    private static Vector2 pointAt(Vector2 centre, float thetaA, float thetaB, float rA, float rB, float t)
-        => centre + polarToCartesian(lerp(thetaA, thetaB, t), lerp(rA, rB, t));
+    // Point at parameter t along a link. Angle is smoothed by a Catmull-Rom spline (continuous sweep
+    // velocity through nodes); radius stays linear so the time→radius mapping the clip relies on is exact.
+    private Vector2 pointAt(Vector2 centre, int link, float rA, float rB, float t)
+        => centre + polarToCartesian(thetaAt(link, t), lerp(rA, rB, t));
+
+    /// <summary>
+    /// Evaluates the smoothed angle at parameter <paramref name="t"/> (0..1) along the given
+    /// <paramref name="link"/>, using cubic Hermite interpolation with the precomputed Catmull-Rom
+    /// tangents at the two surrounding nodes.
+    /// </summary>
+    private float thetaAt(int link, float t)
+    {
+        // Ease the angle's progress only (never the radius), so the sweep feel changes but timing does
+        // not. Endpoints are preserved (ease(0) = 0, ease(1) = 1), so node angles/times stay exact.
+        if (linkEasing[link] != Easing.None)
+            t = (float)Interpolation.ApplyEasing(linkEasing[link], t);
+
+        float theta0 = nodeRadians[link];
+        float theta1 = nodeRadians[link + 1];
+
+        // Linear by default — preserves the link's exact authored geometry. Only opted-in links smooth.
+        if (!linkSmooth[link])
+            return lerp(theta0, theta1, t);
+
+        // Tangents are dθ/dtime; scale by the link duration to express them per unit of t.
+        float h = (float)(nodeTimes[link + 1] - nodeTimes[link]);
+        float m0 = nodeThetaSlopes[link] * h;
+        float m1 = nodeThetaSlopes[link + 1] * h;
+
+        float t2 = t * t;
+        float t3 = t2 * t;
+
+        // Cubic Hermite basis functions.
+        float h00 = 2f * t3 - 3f * t2 + 1f;
+        float h10 = t3 - 2f * t2 + t;
+        float h01 = -2f * t3 + 3f * t2;
+        float h11 = t3 - t2;
+
+        return h00 * theta0 + h10 * m0 + h01 * theta1 + h11 * m1;
+    }
 
     private static float toRadians(float degrees) => degrees * MathF.PI / 180f;
 
@@ -266,8 +327,8 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
         // radius(t) = rA + (rB - rA) * t; keep 0 <= radius(t) <= ringRadius.
         float d = rB - rA;
 
-        return clipEdge(-d, rA, ref tLo, ref tHi)                  // radius(t) >= 0
-               && clipEdge(d, ringRadius - rA, ref tLo, ref tHi);  // radius(t) <= ringRadius
+        return clipEdge(-d, rA, ref tLo, ref tHi) // radius(t) >= 0
+               && clipEdge(d, ringRadius - rA, ref tLo, ref tHi); // radius(t) <= ringRadius
     }
 
     private static bool clipEdge(float p, float q, ref float tLo, ref float tHi)
@@ -280,11 +341,13 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
         if (p < 0)
         {
             if (r > tHi) return false;
+
             if (r > tLo) tLo = r;
         }
         else
         {
             if (r < tLo) return false;
+
             if (r < tHi) tHi = r;
         }
 

@@ -3,6 +3,7 @@
 
 using NUnit.Framework;
 using osu.Framework.Bindables;
+using osu.Framework.Graphics;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.BigAssCircle.Objects;
 using osu.Game.Tests.Visual;
@@ -32,7 +33,11 @@ namespace osu.Game.Rulesets.BigAssCircle.Tests
                                 },
                                 new BacPathControlPoint()
                                 {
-                                    RotationOffset = 90, TimeOffset = 2000
+                                    RotationOffset = 90, TimeOffset = 2000, SweepEasing = Easing.None
+                                },
+                                new BacPathControlPoint()
+                                {
+                                    RotationOffset = 90, TimeOffset = 4000
                                 }
                             ])
                         }
