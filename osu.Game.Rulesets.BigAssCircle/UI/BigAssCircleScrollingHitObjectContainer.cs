@@ -61,6 +61,26 @@ public partial class BigAssCircleScrollingHitObjectContainer : HitObjectContaine
 
     public float ProgressAtTime(double time) => ProgressAtTime(time, Time.Current);
 
+    /// <summary>
+    /// The distance from the playfield centre to the outer ring, in local pixels. An object reaches
+    /// the ring exactly at its own time.
+    /// </summary>
+    public float ScrollLength => scrollLength;
+
+    /// <summary>
+    /// The unclamped distance from the centre at which an object with the given <paramref name="time"/>
+    /// should be drawn. Unlike <see cref="ProgressAtTime(double,double,double?)"/>, this is allowed to
+    /// exceed <see cref="ScrollLength"/> once the time has passed the ring — so callers can clip the
+    /// portion of a shape that has already been consumed by the outer edge, rather than pinning it there.
+    /// </summary>
+    public float DistanceFromCentreAtTime(double time, double currentTime, double? originTime = null)
+    {
+        float scrollPosition = algorithm.Value.PositionAt(time, currentTime, timeRange.Value, scrollLength, originTime);
+        return scrollLength - scrollPosition;
+    }
+
+    public float DistanceFromCentreAtTime(double time) => DistanceFromCentreAtTime(time, Time.Current);
+
     public Vector2 PositionAtTime(DrawableBacButtonHitObject obj, double time, double currentTime, double? originTime = null)
     {
         float radians = ((BacButtonHitObject)obj.HitObject).Direction.ToRadians();

@@ -39,7 +39,7 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
     /// Because interpolation happens in polar space, a link whose endpoints share a radius renders as
     /// an arc rather than a chord; more sub-segments make that arc smoother.
     /// </summary>
-    private const int segments_per_link = 8;
+    private const int segments_per_link = 24;
 
     [Resolved]
     private BigAssCircleScrollingHitObjectContainer scrollingContainer { get; set; }
@@ -139,27 +139,38 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
         {
             var centre = DrawSize / 2;
 
+            float ringRadius = scrollingContainer.ScrollLength;
+
             for (int i = 0; i < nodeTimes.Length; i++)
-                // Clamp to the centre. A node whose time is still more than one time-range in the
-                // future has negative progress; pinning it at radius 0 keeps it at screen centre so
-                // the line visibly emerges outward as each node crosses the centre, instead of being
-                // drawn on the opposite side. This is what gives the path its "comes out of the
-                // middle" look, matching the button hit objects.
-                nodeRadii[i] = MathF.Max(0f, scrollingContainer.ProgressAtTime(nodeTimes[i]));
+                // Raw, unclamped distance from the centre. Negative means the node has not yet emerged
+                // from the centre; greater than the ring radius means it has already been consumed by
+                // the outer edge. Both ends are handled by clipping each link to the visible band
+                // below — NOT by clamping the node. Clamping a not-yet-emerged node to the centre would
+                // draw the whole link from the emerged node straight to the centre at once, instead of
+                // letting the curve creep outward from the middle a little at a time.
+                nodeRadii[i] = scrollingContainer.DistanceFromCentreAtTime(nodeTimes[i]);
 
             for (int i = 0; i < nodeTimes.Length - 1; i++)
             {
-                float thetaA = nodeRadians[i];
-                float thetaB = nodeRadians[i + 1];
                 float rA = nodeRadii[i];
                 float rB = nodeRadii[i + 1];
 
-                Vector2 previous = centre + polarToCartesian(thetaA, rA);
+                // Draw only the part of the link whose radius lies within [centre, ring]. The inner
+                // crossing (radius 0) is the emergence front creeping out from the centre; the outer
+                // crossing (radius == ring) is where the curve is consumed by the edge. Radius varies
+                // linearly along the link, so this is a plain 1-D clip of the parameter range.
+                if (!clipToBand(rA, rB, ringRadius, out float tLo, out float tHi))
+                    continue;
+
+                float thetaA = nodeRadians[i];
+                float thetaB = nodeRadians[i + 1];
+
+                Vector2 previous = pointAt(centre, thetaA, thetaB, rA, rB, tLo);
 
                 for (int k = 1; k <= segments_per_link; k++)
                 {
-                    float t = (float)k / segments_per_link;
-                    Vector2 next = centre + polarToCartesian(lerp(thetaA, thetaB, t), lerp(rA, rB, t));
+                    float t = tLo + (tHi - tLo) * ((float)k / segments_per_link);
+                    Vector2 next = pointAt(centre, thetaA, thetaB, rA, rB, t);
 
                     updateSegment(getBox(visible++), previous, next);
 
@@ -233,9 +244,52 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
     private static Vector2 polarToCartesian(float radians, float radius)
         => new Vector2(MathF.Sin(radians) * radius, MathF.Cos(radians) * radius);
 
+    // Point at parameter t along a link, interpolating both angle and radius in polar space.
+    private static Vector2 pointAt(Vector2 centre, float thetaA, float thetaB, float rA, float rB, float t)
+        => centre + polarToCartesian(lerp(thetaA, thetaB, t), lerp(rA, rB, t));
+
     private static float toRadians(float degrees) => degrees * MathF.PI / 180f;
 
     private static float lerp(float a, float b, float t) => a + (b - a) * t;
+
+    /// <summary>
+    /// Clips a link's parameter range [0, 1] to the sub-range whose linearly-interpolated radius lies
+    /// within [0, <paramref name="ringRadius"/>], using Liang–Barsky. The lower crossing is the point
+    /// currently emerging from the centre; the upper crossing is where the curve meets the ring.
+    /// Returns false if no part of the link is currently visible.
+    /// </summary>
+    private static bool clipToBand(float rA, float rB, float ringRadius, out float tLo, out float tHi)
+    {
+        tLo = 0f;
+        tHi = 1f;
+
+        // radius(t) = rA + (rB - rA) * t; keep 0 <= radius(t) <= ringRadius.
+        float d = rB - rA;
+
+        return clipEdge(-d, rA, ref tLo, ref tHi)                  // radius(t) >= 0
+               && clipEdge(d, ringRadius - rA, ref tLo, ref tHi);  // radius(t) <= ringRadius
+    }
+
+    private static bool clipEdge(float p, float q, ref float tLo, ref float tHi)
+    {
+        if (p == 0)
+            return q >= 0; // link runs parallel to this boundary: visible only if already inside it
+
+        float r = q / p;
+
+        if (p < 0)
+        {
+            if (r > tHi) return false;
+            if (r > tLo) tLo = r;
+        }
+        else
+        {
+            if (r < tLo) return false;
+            if (r < tHi) tHi = r;
+        }
+
+        return true;
+    }
 
     protected override DrawableHitObject CreateNestedHitObject(HitObject hitObject)
     {
