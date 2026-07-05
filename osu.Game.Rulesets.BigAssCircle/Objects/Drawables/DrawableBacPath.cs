@@ -140,7 +140,12 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
             var centre = DrawSize / 2;
 
             for (int i = 0; i < nodeTimes.Length; i++)
-                nodeRadii[i] = scrollingContainer.ProgressAtTime(nodeTimes[i]);
+                // Clamp to the centre. A node whose time is still more than one time-range in the
+                // future has negative progress; pinning it at radius 0 keeps it at screen centre so
+                // the line visibly emerges outward as each node crosses the centre, instead of being
+                // drawn on the opposite side. This is what gives the path its "comes out of the
+                // middle" look, matching the button hit objects.
+                nodeRadii[i] = MathF.Max(0f, scrollingContainer.ProgressAtTime(nodeTimes[i]));
 
             for (int i = 0; i < nodeTimes.Length - 1; i++)
             {

@@ -32,7 +32,7 @@ namespace osu.Game.Rulesets.BigAssCircle.Tests
                                 },
                                 new BacPathControlPoint()
                                 {
-                                    RotationOffset = 90, TimeOffset = 1000
+                                    RotationOffset = 90, TimeOffset = 2000
                                 }
                             ])
                         }
