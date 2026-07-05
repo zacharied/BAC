@@ -10,6 +10,7 @@ using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
 using osuTK;
 using osuTK.Graphics;
+using osu.Framework.Graphics.Effects;
 
 namespace osu.Game.Rulesets.BigAssCircle.Objects.Drawables;
 
@@ -230,7 +231,7 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
             {
                 Origin = Anchor.CentreLeft,
                 Colour = Color4.White,
-                Alpha = 0,
+                Alpha = 0
             };
 
             boxes.Add(box);

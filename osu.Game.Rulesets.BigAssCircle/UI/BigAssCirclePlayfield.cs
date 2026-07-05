@@ -16,8 +16,11 @@ namespace osu.Game.Rulesets.BigAssCircle.UI
 
         private readonly Drawable arc = new Arc(0, 2 * MathF.PI)
         {
+            Resolution = 128,
             Colour = Colour4.White,
         };
+
+        private readonly Drawable radialLines = new PlayfieldRadialLines();
 
         protected override HitObjectContainer CreateHitObjectContainer()
         {
@@ -34,6 +37,7 @@ namespace osu.Game.Rulesets.BigAssCircle.UI
         private void load()
         {
             AddRangeInternal([
+                radialLines,
                 CreateHitObjectContainer(),
                 arc
             ]);

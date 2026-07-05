@@ -13,14 +13,13 @@ namespace osu.Game.Rulesets.BigAssCircle.UI;
 
 public sealed partial class Arc : Container
 {
-    private const int RESOLUTION = 32;
-
+    public int Resolution { get; init; } = 32;
     public BindableFloat StartRadians { get; }
     public BindableFloat EndRadians { get; }
     public BindableFloat Thickness { get; }
 
     private readonly LayoutValue layoutCache = new LayoutValue(Invalidation.DrawSize);
-    private readonly List<Box> segments = new List<Box>(RESOLUTION);
+    private readonly List<Box> segments;
 
     public Arc(float startRadians = 0, float endRadians = 0, float thickness = 5)
     {
@@ -29,6 +28,7 @@ public sealed partial class Arc : Container
         RelativeSizeAxes = Axes.Both;
         Size = Vector2.One;
 
+        segments = new(Resolution);
         StartRadians = new BindableFloat(startRadians);
         EndRadians = new BindableFloat(endRadians);
         Thickness = new BindableFloat(thickness);
@@ -41,7 +41,7 @@ public sealed partial class Arc : Container
     [BackgroundDependencyLoader]
     private void load()
     {
-        for (int i = 0; i < RESOLUTION; i++)
+        for (int i = 0; i < Resolution; i++)
         {
             var segment = new Box
             {
@@ -95,9 +95,9 @@ public sealed partial class Arc : Container
         if (MathF.Abs(angleSpan) <= 0.0001f)
             yield break;
 
-        float step = angleSpan / RESOLUTION;
+        float step = angleSpan / Resolution;
 
-        for (int i = 0; i < RESOLUTION; i++)
+        for (int i = 0; i < Resolution; i++)
         {
             float start = StartRadians.Value + step * i;
             float end = start + step;

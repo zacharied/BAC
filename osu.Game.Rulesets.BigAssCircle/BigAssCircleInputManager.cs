@@ -11,7 +11,7 @@ namespace osu.Game.Rulesets.BigAssCircle
     public partial class BigAssCircleInputManager : RulesetInputManager<BigAssCircleAction>
     {
         public BigAssCircleInputManager(RulesetInfo ruleset)
-            : base(ruleset, 0, SimultaneousBindingMode.Unique)
+            : base(ruleset, 0, SimultaneousBindingMode.All)
         {
         }
 
@@ -23,22 +23,22 @@ namespace osu.Game.Rulesets.BigAssCircle
 
     public enum BigAssCircleAction
     {
-        [Description("Button E")]
+        [Description("Button East")]
         ButtonE,
 
-        [Description("Button N")]
+        [Description("Button North")]
         ButtonN,
 
-        [Description("Button W")]
+        [Description("Button West")]
         ButtonW,
 
-        [Description("Button S")]
+        [Description("Button South")]
         ButtonS,
 
-        [Description("Button L")]
+        [Description("Button Left")]
         ButtonL,
 
-        [Description("Button R")]
+        [Description("Button Right")]
         ButtonR,
     }
 }

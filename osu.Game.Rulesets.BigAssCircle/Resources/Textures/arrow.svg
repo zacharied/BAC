@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Double-chevron directional arrow (points UP by default).
+  White fill with a black outline, vertical shading for volume, and a
+  top-edge "shine" glint. Rotate 90/180/270 in-engine for the other cardinals.
+  The leading (larger) chevron sits in the direction the arrow points.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" width="200" height="220">
+  <defs>
+    <!-- top-to-bottom shading: pure white highlight down to cool grey -->
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0"    stop-color="#ffffff"/>
+      <stop offset="0.55" stop-color="#f1f4f9"/>
+      <stop offset="1"    stop-color="#c7cdd8"/>
+    </linearGradient>
+
+    <!-- glossy specular fade across the upper part of each chevron -->
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0"    stop-color="#ffffff" stop-opacity="0.90"/>
+      <stop offset="0.35" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- diagonal light across the dot's bevel: bright top-left, dark bottom-right -->
+    <linearGradient id="bevel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0"   stop-color="#ffffff"/>
+      <stop offset="0.5" stop-color="#eef1f6"/>
+      <stop offset="1"   stop-color="#b3bbc8"/>
+    </linearGradient>
+
+    <!-- raised top face of the dot, lit from the top-left -->
+    <radialGradient id="dotface" cx="0.4" cy="0.35" r="0.75">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#dbe1ea"/>
+    </radialGradient>
+
+    <!-- soft drop shadow so the art reads against the playfield -->
+    <filter id="shadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+
+    <!-- leading (big) chevron; flat ends, uniform thickness -->
+    <path id="big"   d="M30,90 L100,30 L170,90 L170,124 L100,64 L30,124 Z"/>
+    <!-- trailing (small) chevron -->
+    <path id="small" d="M45,152 L100,105 L155,152 L155,182 L100,135 L45,182 Z"/>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <!-- base shaded fill -->
+    <use href="#big"   fill="url(#shade)"/>
+    <use href="#small" fill="url(#shade)"/>
+
+    <!-- gloss pass on top of the fill -->
+    <use href="#big"   fill="url(#gloss)"/>
+    <use href="#small" fill="url(#gloss)"/>
+
+    <!-- crisp black outline drawn last so it stays sharp over the gloss -->
+    <use href="#big"   fill="none" stroke="#000000" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+    <use href="#small" fill="none" stroke="#000000" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+
+    <!-- rim-light glint along the top edges -->
+    <path d="M32,88 L100,34 L168,88" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M49,150 L100,108 L151,150" fill="none" stroke="#ffffff" stroke-opacity="0.70" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- beveled dot at the base, tucked below the trailing chevron -->
+    <circle cx="100" cy="173" r="25.5" fill="#000000" fill-opacity="0.12"/>            <!-- contact shadow -->
+    <circle cx="100" cy="170" r="25"   fill="url(#bevel)" stroke="#000000" stroke-width="8"/> <!-- bevel ring -->
+    <circle cx="100" cy="170" r="15"   fill="url(#dotface)"/>                           <!-- raised top face -->
+    <ellipse cx="92" cy="161" rx="7.4" ry="4.1" fill="#ffffff" fill-opacity="0.85"
+             transform="rotate(-35 92 161)"/>                                           <!-- specular glint -->
+  </g>
+</svg>

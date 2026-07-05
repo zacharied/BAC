@@ -12,14 +12,14 @@ namespace osu.Game.Rulesets.BigAssCircle.Objects.Drawables
 {
     public partial class DrawableBacButtonHitObject : DrawableHitObject<BacHitObject>
     {
-        public Drawable Box;
+        private readonly Drawable box;
 
         public DrawableBacButtonHitObject(BacHitObject hitObject)
             : base(hitObject)
         {
             Size = new Vector2(40);
             Origin = Anchor.Centre;
-            Box = new Box()
+            box = new Box()
             {
                 RelativeSizeAxes = Axes.Both,
                 Colour = Color4.White,
@@ -29,13 +29,13 @@ namespace osu.Game.Rulesets.BigAssCircle.Objects.Drawables
         [BackgroundDependencyLoader]
         private void load()
         {
-            AddInternal(Box);
+            AddInternal(box);
         }
 
         protected override void PrepareForUse()
         {
             // Apply note spawn effect
-            Box.ScaleTo(0).ScaleTo(1, 100D, Easing.In);
+            box.ScaleTo(0).ScaleTo(1, 100D, Easing.In);
         }
 
         protected override void CheckForResult(bool userTriggered, double timeOffset)
@@ -52,15 +52,15 @@ namespace osu.Game.Rulesets.BigAssCircle.Objects.Drawables
             switch (state)
             {
                 case ArmedState.Hit:
-                    Box
+                    box
                         .Spin(100, RotationDirection.Clockwise)
                         .FadeOut(350, Easing.OutQuint)
                         .OnComplete(_ => Expire());
                     break;
 
                 case ArmedState.Miss:
-                    Box.FadeColour(Color4.Red, duration);
-                    Box.FadeOut(duration, Easing.InQuint).OnComplete(_ => Expire());
+                    box.FadeColour(Color4.Red, duration);
+                    box.FadeOut(duration, Easing.InQuint).OnComplete(_ => Expire());
                     break;
             }
         }
