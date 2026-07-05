@@ -4,17 +4,19 @@
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Shapes;
+using osu.Framework.Input.Bindings;
+using osu.Framework.Input.Events;
 using osu.Game.Rulesets.Objects.Drawables;
 using osuTK;
 using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.BigAssCircle.Objects.Drawables
 {
-    public partial class DrawableBacButtonHitObject : DrawableHitObject<BacHitObject>
+    public partial class DrawableBacButtonHitObject : DrawableHitObject<BacButtonHitObject>, IKeyBindingHandler<BigAssCircleAction>
     {
         private readonly Drawable box;
 
-        public DrawableBacButtonHitObject(BacHitObject hitObject)
+        public DrawableBacButtonHitObject(BacButtonHitObject hitObject)
             : base(hitObject)
         {
             Size = new Vector2(40);
@@ -63,6 +65,18 @@ namespace osu.Game.Rulesets.BigAssCircle.Objects.Drawables
                     box.FadeOut(duration, Easing.InQuint).OnComplete(_ => Expire());
                     break;
             }
+        }
+
+        public bool OnPressed(KeyBindingPressEvent<BigAssCircleAction> e)
+        {
+            if (e.Action.ToCardinalDirection() != HitObject.Direction)
+                return false;
+
+            return UpdateResult(true);
+        }
+
+        public void OnReleased(KeyBindingReleaseEvent<BigAssCircleAction> e)
+        {
         }
     }
 }

@@ -10,7 +10,6 @@ using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
 using osuTK;
 using osuTK.Graphics;
-using osu.Framework.Graphics.Effects;
 
 namespace osu.Game.Rulesets.BigAssCircle.Objects.Drawables;
 

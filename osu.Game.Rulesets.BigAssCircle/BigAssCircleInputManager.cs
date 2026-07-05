@@ -4,6 +4,7 @@
 using System.ComponentModel;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
+using osu.Game.Rulesets.BigAssCircle.Core;
 using osu.Game.Rulesets.UI;
 
 namespace osu.Game.Rulesets.BigAssCircle
@@ -40,5 +41,20 @@ namespace osu.Game.Rulesets.BigAssCircle
 
         [Description("Button Right")]
         ButtonR,
+    }
+
+    public static class BacActionExtensions
+    {
+        public static CardinalDirection? ToCardinalDirection(this BigAssCircleAction action)
+        {
+            return action switch
+            {
+                BigAssCircleAction.ButtonE => CardinalDirection.East,
+                BigAssCircleAction.ButtonN => CardinalDirection.North,
+                BigAssCircleAction.ButtonW => CardinalDirection.West,
+                BigAssCircleAction.ButtonS => CardinalDirection.South,
+                _ => null
+            };
+        }
     }
 }

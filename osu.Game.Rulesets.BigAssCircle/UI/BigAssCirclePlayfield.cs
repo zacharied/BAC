@@ -4,7 +4,9 @@
 using System;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
+using osu.Framework.Input;
 using osu.Framework.Layout;
+using osu.Game.Rulesets.BigAssCircle.Core;
 using osu.Game.Rulesets.UI;
 
 namespace osu.Game.Rulesets.BigAssCircle.UI
@@ -21,6 +23,9 @@ namespace osu.Game.Rulesets.BigAssCircle.UI
         };
 
         private readonly Drawable radialLines = new PlayfieldRadialLines();
+
+        private readonly Drawable stickIndicatorL = new StickIndicator(JoystickAxisSource.GamePadLeftStickX, JoystickAxisSource.GamePadLeftStickY, HorizontalDirection.Left);
+        private readonly Drawable stickIndicatorR = new StickIndicator(JoystickAxisSource.GamePadRightStickX, JoystickAxisSource.GamePadRightStickY, HorizontalDirection.Right);
 
         protected override HitObjectContainer CreateHitObjectContainer()
         {
@@ -39,7 +44,9 @@ namespace osu.Game.Rulesets.BigAssCircle.UI
             AddRangeInternal([
                 radialLines,
                 CreateHitObjectContainer(),
-                arc
+                arc,
+                stickIndicatorL,
+                stickIndicatorR
             ]);
         }
 

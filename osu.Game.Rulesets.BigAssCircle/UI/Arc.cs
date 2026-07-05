@@ -76,7 +76,7 @@ public sealed partial class Arc : Container
     {
         float length = line.Rho;
 
-        box.Alpha = length > 0 && Thickness.Value > 0 ? 1 : 0;
+        box.Alpha = length > 0 && Thickness.Value > 0 ? Alpha : 0;
         box.Position = line.StartPoint;
         box.Size = new Vector2(length, Thickness.Value);
         box.Rotation = line.Theta * 180 / MathF.PI;
