@@ -32,7 +32,7 @@ namespace osu.Game.Rulesets.BigAssCircle.UI
         public override DrawableHitObject<BacHitObject> CreateDrawableRepresentation(BacHitObject h) => h switch
         {
             BacPathStartHitObject path => new DrawableBacPath(path),
-            _ => new DrawableBacButtonHitObject(h),
+            CardinalNote button => new DrawableBacButtonHitObject(button)
         };
 
         protected override PassThroughInputManager CreateInputManager() => new BigAssCircleInputManager(Ruleset?.RulesetInfo);

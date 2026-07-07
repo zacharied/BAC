@@ -2,14 +2,16 @@ using System;
 using System.Collections.Generic;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
-using osu.Framework.Graphics.Shapes;
+using osu.Framework.Graphics.Effects;
+using osu.Framework.Graphics.Lines;
 using osu.Game.Rulesets.BigAssCircle.UI;
 using osu.Framework.Utils;
+using osu.Game.Rulesets.BigAssCircle.Core;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
 using osuTK;
-using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.BigAssCircle.Objects.Drawables;
 
@@ -21,6 +23,11 @@ namespace osu.Game.Rulesets.BigAssCircle.Objects.Drawables;
 /// node's angle and <c>r</c> is its distance from the centre. The radius is driven by the scrolling
 /// algorithm, so as time advances every node "comes out" from the centre towards the surrounding arc,
 /// giving the whole path the look of a durationed object emerging from the middle of the screen.
+///
+/// Rendering is delegated to <see cref="SmoothPath"/> (osu!framework's line renderer), which handles
+/// thickness, rounded joints and anti-aliasing for us. This drawable's job is purely to produce the
+/// list of cartesian vertices each frame — subdividing every link in polar space so constant-radius
+/// links render as arcs, and clipping each link to the visible band <c>[0, ScrollLength]</c>.
 /// </summary>
 public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
 {
@@ -31,30 +38,51 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
     public new BacPathStartHitObject HitObject => (BacPathStartHitObject)base.HitObject;
 
     /// <summary>
-    /// Thickness of the rendered line, in pixels.
+    /// Full width of the rendered line, in pixels. Half of this becomes the <see cref="Path.PathRadius"/>.
     /// </summary>
-    public float Thickness { get; init; } = 5;
+    public float Thickness { get; init; } = 15;
+
+    /// <summary>
+    /// Colour of the additive glow rendered behind the path. White gives a neutral halo that brightens
+    /// whatever colour the path itself is tinted.
+    /// </summary>
+    public ColourInfo GlowColour { get; init; } = Colour4.White;
+
+    /// <summary>
+    /// Blur radius (sigma, in pixels) of the glow — larger values spread the halo further out.
+    /// </summary>
+    public float GlowBlurSigma { get; init; } = 30f;
+
+    /// <summary>
+    /// Intensity multiplier applied to the glow.
+    /// </summary>
+    public float GlowStrength { get; init; } = 30f;
 
     /// <summary>
     /// Number of straight sub-segments used to approximate the link between two consecutive nodes.
     /// Because interpolation happens in polar space, a link whose endpoints share a radius renders as
     /// an arc rather than a chord; more sub-segments make that arc smoother.
     /// </summary>
-    private const int segments_per_link = 24;
+    private const int segments_per_link = 12;
 
     [Resolved]
     private BigAssCircleScrollingHitObjectContainer scrollingContainer { get; set; } = null!;
 
-    private readonly Container<Box> pathLinesContainer = new()
+    // Tinted/faded as a unit (fade-in, red-on-miss). SmoothPath forces its own draw colour to white,
+    // so colour/alpha applied here is what tints the path via the framebuffer blit.
+    private readonly Container<SmoothPath> pathContainer = new()
     {
         RelativeSizeAxes = Axes.Both,
     };
 
-    private readonly List<Box> boxes = new();
+    // Pool of SmoothPaths. Normally the visible portion of the path is a single contiguous run, but if
+    // the run breaks (e.g. non-monotonic node times leave a gap) we start a fresh path so the two spans
+    // are not joined by a stray line. Grown lazily, mirroring the old box pool.
+    private readonly List<SmoothPath> paths = new();
 
     // Nested child hit objects live here so they receive a clock and are updated/judged like any
-    // other DrawableHitObject. They draw nothing (the path visuals come entirely from
-    // pathLinesContainer); without a real parent in the tree, OnKilled would dereference a null clock.
+    // other DrawableHitObject. They draw nothing (the path visuals come entirely from pathContainer);
+    // without a real parent in the tree, OnKilled would dereference a null clock.
     private readonly Container<DrawableBacPathChild> nestedContainer = new()
     {
         RelativeSizeAxes = Axes.Both,
@@ -75,18 +103,32 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
     private bool[] linkSmooth = Array.Empty<bool>();
     private Easing[] linkEasing = Array.Empty<Easing>();
 
+    // Reused each frame to accumulate the vertices of the contiguous run currently being built.
+    private readonly List<Vector2> scratchVertices = new();
+
     public DrawableBacPath(BacPathStartHitObject? hitObject = null)
         : base(hitObject)
     {
-        // Fill the container so our local space matches it 1:1: the centre is DrawSize / 2 and radii
-        // returned by the container map directly onto our own coordinate space.
         RelativeSizeAxes = Axes.Both;
+        pathContainer.Colour = HitObject.Side == HorizontalDirection.Left ? Constants.LeftColour : Constants.RightColour;
     }
 
     [BackgroundDependencyLoader]
     private void load()
     {
-        AddInternal(pathLinesContainer);
+        // Wrap the whole path pool in an additive glow. GlowEffect buffers pathContainer's rendered
+        // alpha and blurs it, so the halo hugs the actual line shape (not a bounding box) and a single
+        // buffer covers every pooled path. The crisp paths are drawn in front of the halo. Fading or
+        // recolouring pathContainer flows through to the glow, since it is regenerated from that content.
+        AddInternal(new GlowEffect
+        {
+            Colour = GlowColour,
+            BlurSigma = new Vector2(GlowBlurSigma),
+            Strength = GlowStrength,
+            // PadExtent would inset (and misalign) the relatively-sized pathContainer, so leave it off.
+            PadExtent = false,
+        }.ApplyTo(pathContainer));
+
         AddInternal(nestedContainer);
     }
 
@@ -99,7 +141,7 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
     protected override void PrepareForUse()
     {
         base.PrepareForUse();
-        pathLinesContainer.FadeInFromZero(100, Easing.In);
+        pathContainer.FadeInFromZero(100, Easing.In);
     }
 
     protected override void Update()
@@ -155,17 +197,15 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
 
     /// <summary>
     /// Recomputes the line geometry for the current frame. Each node's radius is resolved through the
-    /// scrolling algorithm, then consecutive nodes are joined by sub-segmented boxes interpolated in
-    /// polar space.
+    /// scrolling algorithm, then the visible portion of the path is walked link-by-link and emitted as
+    /// one or more <see cref="SmoothPath"/> vertex lists.
     /// </summary>
     private void updatePath()
     {
-        int visible = 0;
+        int pathIndex = 0;
 
         if (nodeTimes.Length >= 2)
         {
-            var centre = DrawSize / 2;
-
             float ringRadius = scrollingContainer.ScrollLength;
 
             for (int i = 0; i < nodeTimes.Length; i++)
@@ -177,67 +217,98 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
                 // letting the curve creep outward from the middle a little at a time.
                 nodeRadii[i] = scrollingContainer.DistanceFromCentreAtTime(nodeTimes[i]);
 
+            scratchVertices.Clear();
+
             for (int i = 0; i < nodeTimes.Length - 1; i++)
             {
                 float rA = nodeRadii[i];
                 float rB = nodeRadii[i + 1];
 
-                // Draw only the part of the link whose radius lies within [centre, ring]. The inner
-                // crossing (radius 0) is the emergence front creeping out from the centre; the outer
-                // crossing (radius == ring) is where the curve is consumed by the edge. Radius varies
-                // linearly along the link, so this is a plain 1-D clip of the parameter range.
+                // Draw only the part of the link whose radius lies within [0, ring]. The inner crossing
+                // (radius 0) is the emergence front creeping out from the centre; the outer crossing
+                // (radius == ring) is where the curve is consumed by the edge. Radius varies linearly
+                // along the link, so this is a plain 1-D clip of the parameter range.
                 if (!clipToBand(rA, rB, ringRadius, out float tLo, out float tHi))
+                {
+                    // This link is entirely outside the visible band; the run cannot continue past it.
+                    pathIndex = flushRun(pathIndex);
                     continue;
+                }
 
-                Vector2 previous = pointAt(centre, i, rA, rB, tLo);
+                Vector2 startPoint = pointAt(i, rA, rB, tLo);
+
+                // Continue the current run only if this link's visible portion begins exactly where the
+                // last one ended (a shared, fully-visible node). Otherwise there is a gap — flush and
+                // start a fresh path so the two spans are not bridged by a stray line.
+                if (scratchVertices.Count > 0 && !approxEqual(scratchVertices[^1], startPoint))
+                    pathIndex = flushRun(pathIndex);
+
+                if (scratchVertices.Count == 0)
+                    scratchVertices.Add(startPoint);
 
                 for (int k = 1; k <= segments_per_link; k++)
                 {
                     float t = tLo + (tHi - tLo) * ((float)k / segments_per_link);
-                    Vector2 next = pointAt(centre, i, rA, rB, t);
-
-                    updateSegment(getBox(visible++), previous, next);
-
-                    previous = next;
+                    scratchVertices.Add(pointAt(i, rA, rB, t));
                 }
+
+                // Clipped before reaching its end node: the curve is consumed by the ring (or dips back
+                // below the centre) here, so this contiguous run ends.
+                if (tHi < 1f)
+                    pathIndex = flushRun(pathIndex);
             }
+
+            pathIndex = flushRun(pathIndex);
         }
 
-        // Hide boxes that were used by a longer path on a previous frame / hit object.
-        for (int i = visible; i < boxes.Count; i++)
-            boxes[i].Alpha = 0;
-    }
-
-    private void updateSegment(Box box, Vector2 start, Vector2 end)
-    {
-        Vector2 diff = end - start;
-        float length = diff.Length;
-
-        box.Alpha = length > 0 && Thickness > 0 ? 1 : 0;
-        box.Position = start;
-        box.Size = new Vector2(length, Thickness);
-        box.Rotation = MathF.Atan2(diff.Y, diff.X) * 180f / MathF.PI;
+        // Hide paths that were used by a longer path on a previous frame / hit object.
+        for (int i = pathIndex; i < paths.Count; i++)
+            paths[i].Vertices = Array.Empty<Vector2>();
     }
 
     /// <summary>
-    /// Lazily grows the box pool, returning the box at <paramref name="index"/>.
+    /// Commits the vertices accumulated in <see cref="scratchVertices"/> (if it forms a drawable run of
+    /// at least two points) to the next pooled path, then clears the scratch buffer. Returns the updated
+    /// index into <see cref="paths"/>.
     /// </summary>
-    private Box getBox(int index)
+    private int flushRun(int pathIndex)
     {
-        while (boxes.Count <= index)
+        if (scratchVertices.Count >= 2)
         {
-            var box = new Box
-            {
-                Origin = Anchor.CentreLeft,
-                Colour = Color4.White,
-                Alpha = 0
-            };
+            var path = getPath(pathIndex++);
 
-            boxes.Add(box);
-            pathLinesContainer.Add(box);
+            // Vertices setter copies the list, so reusing the scratch buffer afterwards is safe.
+            path.Vertices = scratchVertices;
+
+            // Path auto-sizes to its vertex bounds and offsets content by vertexBounds.TopLeft; undo that
+            // offset so a vertex at the polar origin (0,0) lands on the playfield centre (our anchor).
+            path.Position = -path.PositionInBoundingBox(Vector2.Zero);
         }
 
-        return boxes[index];
+        scratchVertices.Clear();
+        return pathIndex;
+    }
+
+    /// <summary>
+    /// Lazily grows the path pool, returning the path at <paramref name="index"/>.
+    /// </summary>
+    private SmoothPath getPath(int index)
+    {
+        while (paths.Count <= index)
+        {
+            var path = new SmoothPath
+            {
+                // Anchor the polar origin (vertex 0,0) at the playfield centre. Position (set per frame)
+                // compensates for the auto-size bounding-box offset.
+                Anchor = Anchor.Centre,
+                PathRadius = Thickness / 2,
+            };
+
+            paths.Add(path);
+            pathContainer.Add(path);
+        }
+
+        return paths[index];
     }
 
     protected override void CheckForResult(bool userTriggered, double timeOffset)
@@ -255,23 +326,24 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
         switch (state)
         {
             case ArmedState.Hit:
-                pathLinesContainer.FadeOut(350, Easing.OutQuint).OnComplete(_ => Expire());
+                pathContainer.FadeOut(350, Easing.OutQuint).OnComplete(_ => Expire());
                 break;
 
             case ArmedState.Miss:
-                pathLinesContainer.FadeColour(Color4.Red, duration);
-                pathLinesContainer.FadeOut(duration, Easing.InQuint).OnComplete(_ => Expire());
+                pathContainer.FadeColour(Colour4.Red, duration);
+                pathContainer.FadeOut(duration, Easing.InQuint).OnComplete(_ => Expire());
                 break;
         }
     }
 
     private static Vector2 polarToCartesian(float radians, float radius)
-        => new Vector2(MathF.Sin(radians) * radius, MathF.Cos(radians) * radius);
+        => new Vector2(MathF.Cos(radians) * radius, -MathF.Sin(radians) * radius);
 
-    // Point at parameter t along a link. Angle is smoothed by a Catmull-Rom spline (continuous sweep
-    // velocity through nodes); radius stays linear so the time→radius mapping the clip relies on is exact.
-    private Vector2 pointAt(Vector2 centre, int link, float rA, float rB, float t)
-        => centre + polarToCartesian(thetaAt(link, t), lerp(rA, rB, t));
+    // Point at parameter t along a link, in polar-origin-centred space (vertex (0,0) is the centre).
+    // Angle is smoothed/eased per the link's control point; radius stays linear so the time→radius
+    // mapping the clip relies on is exact.
+    private Vector2 pointAt(int link, float rA, float rB, float t)
+        => polarToCartesian(thetaAt(link, t), lerp(rA, rB, t));
 
     /// <summary>
     /// Evaluates the smoothed angle at parameter <paramref name="t"/> (0..1) along the given
@@ -312,6 +384,8 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
     private static float toRadians(float degrees) => degrees * MathF.PI / 180f;
 
     private static float lerp(float a, float b, float t) => a + (b - a) * t;
+
+    private static bool approxEqual(Vector2 a, Vector2 b) => (a - b).LengthSquared < 0.0001f;
 
     /// <summary>
     /// Clips a link's parameter range [0, 1] to the sub-range whose linearly-interpolated radius lies

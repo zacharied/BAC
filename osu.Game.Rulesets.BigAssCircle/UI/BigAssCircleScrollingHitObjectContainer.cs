@@ -21,7 +21,7 @@ namespace osu.Game.Rulesets.BigAssCircle.UI;
 
 
 [Cached]
-public partial class BigAssCircleScrollingHitObjectContainer : HitObjectContainer
+internal partial class BigAssCircleScrollingHitObjectContainer : HitObjectContainer
 {
     private readonly IBindable<double> timeRange = new BindableDouble();
     private readonly IBindable<IScrollAlgorithm> algorithm = new Bindable<IScrollAlgorithm>();
@@ -31,7 +31,10 @@ public partial class BigAssCircleScrollingHitObjectContainer : HitObjectContaine
     /// </summary>
     private readonly HashSet<DrawableHitObject> layoutComputed = new HashSet<DrawableHitObject>();
 
-    private IScrollingInfo scrollingInfo { get; set; } = new ScrollingTestContainer.TestScrollingInfo();
+    private IScrollingInfo scrollingInfo { get; set; } = new ScrollingTestContainer.TestScrollingInfo()
+    {
+        TimeRange = { Value = 700 }
+    };
 
     // Responds to changes in the layout. When the layout changes, all hit object states must be recomputed.
     private readonly LayoutValue layoutCache = new LayoutValue(Invalidation.RequiredParentSizeToFit | Invalidation.DrawInfo);
@@ -83,10 +86,10 @@ public partial class BigAssCircleScrollingHitObjectContainer : HitObjectContaine
 
     public Vector2 PositionAtTime(DrawableBacButtonHitObject obj, double time, double currentTime, double? originTime = null)
     {
-        float radians = ((BacButtonHitObject)obj.HitObject).Direction.ToRadians();
+        float radians = ((CardinalNote)obj.HitObject).Direction.ToRadians();
         float distanceFromCentre = ProgressAtTime(time, currentTime, originTime);
 
-        var localPosition = new Vector2(MathF.Sin(radians) * distanceFromCentre, MathF.Cos(radians) * distanceFromCentre);
+        var localPosition = new Vector2(MathF.Cos(radians) * distanceFromCentre, -MathF.Sin(radians) * distanceFromCentre);
         return DrawRectangle.Centre + localPosition;
     }
 

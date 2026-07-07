@@ -4,6 +4,7 @@ namespace osu.Game.Rulesets.BigAssCircle.Objects;
 
 public class BacSlamEdge : BacHitObject
 {
-    public int PositionDeg = 0;
+    public HorizontalDirection Side;
     public RotationalDirection Direction = RotationalDirection.Clockwise;
+    public int Angle = 0;
 }

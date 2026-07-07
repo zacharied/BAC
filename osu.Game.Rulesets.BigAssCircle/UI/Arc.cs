@@ -4,22 +4,45 @@ using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
-using osu.Framework.Graphics.Primitives;
-using osu.Framework.Graphics.Shapes;
+using osu.Framework.Graphics.Lines;
 using osu.Framework.Layout;
 using osuTK;
 
 namespace osu.Game.Rulesets.BigAssCircle.UI;
 
+/// <summary>
+/// Draws a circular arc — or, at a full <c>2π</c> span, the playfield's outer ring — in the polar
+/// coordinate system used throughout the playfield (<c>x = cos(θ)·r, y = -sin(θ)·r</c>, so θ = 0 points
+/// right and θ increases counter-clockwise).
+///
+/// Rendering is delegated to osu!framework's <see cref="SmoothPath"/>: the arc is tessellated into
+/// <see cref="Resolution"/> straight sub-segments and handed over as a vertex list, so thickness,
+/// rounded joints and anti-aliasing come for free. A full circle simply has coincident first/last
+/// vertices, and the path's rounded end caps close the seam.
+/// </summary>
 public sealed partial class Arc : Container
 {
+    /// <summary>
+    /// Number of straight sub-segments the arc is tessellated into across its whole span.
+    /// </summary>
     public int Resolution { get; init; } = 32;
+
     public BindableFloat StartRadians { get; }
     public BindableFloat EndRadians { get; }
     public BindableFloat Thickness { get; }
 
     private readonly LayoutValue layoutCache = new LayoutValue(Invalidation.DrawSize);
-    private readonly List<Box> segments;
+
+    // SmoothPath forces its own draw colour to white, so this Arc's Colour/Alpha tints the path via the
+    // framebuffer blit. Anchored at the container centre; Position (set per regen) compensates for the
+    // auto-size bounding-box offset so the polar origin (0,0) lands there.
+    private readonly SmoothPath path = new SmoothPath
+    {
+        Anchor = Anchor.Centre,
+    };
+
+    // Reused each regeneration to avoid per-frame allocation while StickIndicator sweeps the arc.
+    private readonly List<Vector2> vertices = new();
 
     public Arc(float startRadians = 0, float endRadians = 0, float thickness = 5)
     {
@@ -28,7 +51,6 @@ public sealed partial class Arc : Container
         RelativeSizeAxes = Axes.Both;
         Size = Vector2.One;
 
-        segments = new(Resolution);
         StartRadians = new BindableFloat(startRadians);
         EndRadians = new BindableFloat(endRadians);
         Thickness = new BindableFloat(thickness);
@@ -41,16 +63,7 @@ public sealed partial class Arc : Container
     [BackgroundDependencyLoader]
     private void load()
     {
-        for (int i = 0; i < Resolution; i++)
-        {
-            var segment = new Box
-            {
-                Origin = Anchor.CentreLeft,
-            };
-
-            segments.Add(segment);
-            AddInternal(segment);
-        }
+        AddInternal(path);
     }
 
     protected override void Update()
@@ -59,54 +72,40 @@ public sealed partial class Arc : Container
         if (layoutCache.IsValid)
             return;
 
-        int visibleSegments = 0;
-
-        foreach (var line in regenerateLines())
-        {
-            updateSegment(segments[visibleSegments++], line);
-        }
-
-        for (int i = visibleSegments; i < segments.Count; i++)
-            segments[i].Alpha = 0;
-
+        regeneratePath();
         layoutCache.Validate();
     }
 
-    private void updateSegment(Box box, Line line)
+    private void regeneratePath()
     {
-        float length = line.Rho;
+        path.PathRadius = Thickness.Value / 2;
 
-        box.Alpha = length > 0 && Thickness.Value > 0 ? Alpha : 0;
-        box.Position = line.StartPoint;
-        box.Size = new Vector2(length, Thickness.Value);
-        box.Rotation = line.Theta * 180 / MathF.PI;
-    }
+        vertices.Clear();
 
-    private IEnumerable<Line> regenerateLines()
-    {
-        var centre = ChildSize / 2;
-        float radius = (MathF.Min(ChildSize.X, ChildSize.Y) - Thickness.Value) / 2;
-
-        if (radius <= 0 || Thickness.Value <= 0)
-            yield break;
-
+        // Inset the centreline by half the thickness so the stroke's outer edge sits on the bounding box
+        // (mirrors the old box placement, where the line was centred on this radius).
+        float radius = (MathF.Min(ChildSize.X, ChildSize.Y)) / 2;
         float angleSpan = EndRadians.Value - StartRadians.Value;
 
-        if (MathF.Abs(angleSpan) <= 0.0001f)
-            yield break;
-
-        float step = angleSpan / Resolution;
-
-        for (int i = 0; i < Resolution; i++)
+        if (radius > 0 && Thickness.Value > 0 && MathF.Abs(angleSpan) > 0.0001f)
         {
-            float start = StartRadians.Value + step * i;
-            float end = start + step;
+            float step = angleSpan / Resolution;
 
-            yield return new Line(
-                centre + positionAt(start, radius),
-                centre + positionAt(end, radius));
+            // Resolution + 1 vertices span [Start, End]; at a full 2π the last coincides with the first.
+            for (int i = 0; i <= Resolution; i++)
+            {
+                float angle = StartRadians.Value + step * i;
+                vertices.Add(positionAt(angle, radius));
+            }
         }
+
+        // Vertices setter copies the list, so reusing the buffer afterwards is safe.
+        path.Vertices = vertices;
+
+        // Undo Path's auto-size bounding-box offset so vertex (0,0) — the polar origin — lands on the
+        // container centre (where the SmoothPath is anchored).
+        path.Position = -path.PositionInBoundingBox(Vector2.Zero);
     }
 
-    private Vector2 positionAt(float radians, float radius) => new Vector2(MathF.Sin(radians) * radius, MathF.Cos(radians) * radius);
+    private static Vector2 positionAt(float radians, float radius) => new Vector2(MathF.Cos(radians) * radius, -MathF.Sin(radians) * radius);
 }

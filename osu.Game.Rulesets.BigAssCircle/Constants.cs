@@ -1,0 +1,10 @@
+using osu.Framework.Graphics;
+using osu.Framework.Graphics.Colour;
+
+namespace osu.Game.Rulesets.BigAssCircle;
+
+public static class Constants
+{
+    public static readonly ColourInfo LeftColour = Colour4.FromHex("#0564D0");
+    public static readonly ColourInfo RightColour = Colour4.FromHex("#D41159");
+}

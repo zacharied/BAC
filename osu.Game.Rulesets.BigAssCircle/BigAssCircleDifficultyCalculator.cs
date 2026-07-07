@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using osu.Framework.Allocation;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
@@ -12,6 +13,7 @@ using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.BigAssCircle
 {
+    [Cached]
     public class BigAssCircleDifficultyCalculator : DifficultyCalculator
     {
         public BigAssCircleDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap)

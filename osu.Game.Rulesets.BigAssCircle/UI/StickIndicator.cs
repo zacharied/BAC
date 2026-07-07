@@ -13,7 +13,7 @@ public partial class StickIndicator : Container
 {
     /// <summary>
     /// The rotation (in radians, same polar convention as the rest of the playfield:
-    /// <c>x = sin(θ)·r, y = cos(θ)·r</c>) that the stick is currently pointing towards.
+    /// <c>x = cos(θ)·r, y = -sin(θ)·r</c>) that the stick is currently pointing towards.
     /// Only meaningful while <see cref="Activated"/> is true.
     /// </summary>
     public float Angle { get; private set; }
@@ -96,10 +96,10 @@ public partial class StickIndicator : Container
 
         if (Activated)
         {
-            // Same polar convention as PositionAtTime: x = sin(θ)·r, y = cos(θ)·r.
-            // The joystick reports +x right and +y down, matching the screen, so θ = atan2(x, y)
-            // places the arc on the ring in the direction the stick is pushed.
-            Angle = MathF.Atan2(position.X, position.Y);
+            // Same polar convention as PositionAtTime: x = cos(θ)·r, y = -sin(θ)·r.
+            // The joystick reports +x right and +y down, matching the screen, so inverting that convention
+            // (θ = atan2(-y, x)) places the arc on the ring in the direction the stick is pushed.
+            Angle = MathF.Atan2(-position.Y, position.X);
 
             arc.StartRadians.Value = Angle - ArcWidth / 2;
             arc.EndRadians.Value = Angle + ArcWidth / 2;

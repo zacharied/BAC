@@ -5,5 +5,5 @@ namespace osu.Game.Rulesets.BigAssCircle.Objects;
 public class BacSlamCentered
 {
     public HorizontalDirection Side { get; init; } = HorizontalDirection.Left;
-    public int DirectionDeg { get; init; } = 0;
+    public int Angle { get; init; } = 0;
 }

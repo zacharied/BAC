@@ -1,61 +1,52 @@
-﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-using System;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Input;
-using osu.Framework.Layout;
 using osu.Game.Rulesets.BigAssCircle.Core;
+using osu.Game.Rulesets.Objects;
+using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.UI;
 
 namespace osu.Game.Rulesets.BigAssCircle.UI
 {
+    /// <summary>
+    /// The top-level playfield — the analog of mania's <c>ManiaPlayfield</c>. It nests a single
+    /// <see cref="Ring"/> (the arena that owns the lanes) and forwards every hit object to it, keeping only
+    /// the global overlays that are not tied to a single lane.
+    /// </summary>
     [Cached]
     public partial class BigAssCirclePlayfield : Playfield
     {
-        private readonly LayoutValue layoutCache = new LayoutValue(Invalidation.DrawSize);
-
-        private readonly Drawable arc = new Arc(0, 2 * MathF.PI)
-        {
-            Resolution = 128,
-            Colour = Colour4.White,
-        };
-
-        private readonly Drawable radialLines = new PlayfieldRadialLines();
+        private readonly Ring ring = new Ring();
 
         private readonly Drawable stickIndicatorL = new StickIndicator(JoystickAxisSource.GamePadLeftStickX, JoystickAxisSource.GamePadLeftStickY, HorizontalDirection.Left);
         private readonly Drawable stickIndicatorR = new StickIndicator(JoystickAxisSource.GamePadRightStickX, JoystickAxisSource.GamePadRightStickY, HorizontalDirection.Right);
 
-        protected override HitObjectContainer CreateHitObjectContainer()
-        {
-            return new BigAssCircleScrollingHitObjectContainer();
-        }
-
         public BigAssCirclePlayfield()
         {
-            AddLayout(layoutCache);
             Padding = new MarginPadding(150);
+            AddNested(ring);
         }
 
         [BackgroundDependencyLoader]
         private void load()
         {
             AddRangeInternal([
-                radialLines,
-                CreateHitObjectContainer(),
-                arc,
+                ring,
                 stickIndicatorL,
-                stickIndicatorR
+                stickIndicatorR,
+                new JoystickDebugOverlay() // TEMPORARY: remove once gamepad mappings are confirmed.
             ]);
         }
 
-        protected override void Update()
-        {
-            if (layoutCache.IsValid)
-                return;
+        public override void Add(HitObject hitObject) => ring.Add(hitObject);
 
-            layoutCache.Validate();
-        }
+        public override bool Remove(HitObject hitObject) => ring.Remove(hitObject);
+
+        public override void Add(DrawableHitObject h) => ring.Add(h);
+
+        public override bool Remove(DrawableHitObject h) => ring.Remove(h);
     }
 }

@@ -21,7 +21,9 @@ In the case of DI-resolved classes (usually marked with `[Resolved]`) explicitly
 ## Core rendering model (learn this first)
 
 - **Polar coordinate system** centred on the playfield. Convention everywhere (buttons, `Arc`, paths):
-  `x = sin(θ)·r`, `y = cos(θ)·r`.
+  `x = cos(θ)·r`, `y = -sin(θ)·r` (screen y is down). So `θ = 0` points **right** (East) and θ increases
+  **counter-clockwise**: East→right, North→up, West→left, South→down. `CardinalDirection.ToRadians()`
+  gives East=0, North=π/2, West=π, South=3π/2, matching those directions.
 - The **scroll algorithm maps TIME → RADIUS**: an object sits at the centre one `TimeRange` before its
   time and reaches the ring (`ScrollLength = min(width,height)/2`) exactly at its time. That is *why*
   things "emerge from the centre."
@@ -30,7 +32,11 @@ In the case of DI-resolved classes (usually marked with `[Resolved]`) explicitly
   - `DistanceFromCentreAtTime(time)` — **unclamped** (negative = not yet emerged, `> ScrollLength` =
     already consumed by the ring). Used by paths so they can clip against both boundaries.
   - `ScrollLength` — ring radius.
-  - The container is `[Cached]`; drawables resolve it via `[Resolved]`.
+  - The container is `[Cached]`. Since the playfield split there are **several instances** — one per
+    `Lane` (holding that direction's buttons) plus one on the `Ring` (holding cross-lane paths). All are
+    full-size, so they compute identical geometry. A `DrawableBacPath` `[Resolved]`s the *nearest* one
+    (its parent, the ring's), which is why paths must live in the ring's container, not a lane's. See
+    "Playfield structure" below.
 - The container's alive-loop only *positions* `DrawableBacButtonHitObject`. **Paths self-manage their
   geometry each frame** in `DrawableBacPath.Update`, so the loop skips non-buttons (don't re-introduce a
   blanket cast — it will crash on paths).
@@ -43,6 +49,41 @@ In the case of DI-resolved classes (usually marked with `[Resolved]`) explicitly
   angle; a list of `BacPathControlPoint`). Nests one `BacPathChildHitObject` per control point.
   `IHasDuration` gives it a correct lifetime (last node reaches the ring at `EndTime`).
 - Drawable selection: `DrawableBigAssCircleRuleset.CreateDrawableRepresentation` dispatches on type.
+
+## Playfield structure: ring & lanes (mania-style)
+
+Modelled on mania's `ManiaPlayfield → Stage → Column` to get **lane-independent note-lock**. Three levels:
+
+- **`BigAssCirclePlayfield`** (= `ManiaPlayfield`) — thin top-level router. Nests one `Ring`, forwards
+  `Add`/`Remove` to it, and keeps the global overlays that aren't tied to a lane (stick indicators, debug).
+- **`Ring`** (= `Stage`) — the circular arena. Owns the shared furniture in correct z-order (radial lines
+  behind, outer `Arc` in front), holds cross-lane **paths** in its own container (like a stage holds bar
+  lines — this is also the geometry authority paths resolve), nests the four `Lane`s, and routes each
+  button to `lanes[(int)Direction]`. **Lanes are created in the constructor, not the BDL**, so a routed
+  `Add` never hits a null lane (mirrors `Stage`).
+- **`Lane`** (= `Column`) — one per `CardinalDirection`. Owns its own hit-object container (its buttons),
+  a `BacOrderedHitPolicy`, and its `PlayfieldKeybeam`. Wires `CheckHittable` onto its buttons in
+  `OnNewDrawableHitObject` and force-misses skipped earlier notes in `OnNewResult`.
+
+**Why it's lane-independent:** each lane's hit policy only ever sees *its own* container's `AliveObjects`,
+so `GetNext`/note-lock is naturally scoped per direction. Paths are cross-directional, so they are **not**
+lane objects — they live in the ring's container.
+
+**Note-lock + input ordering (this was a real bug — read before touching `OnPressed`):**
+
+- `DrawableBacButtonHitObject.OnPressed` **must `return UpdateResult(true)`** — i.e. consume the press when
+  it lands a hit. Returning `false` (an earlier iteration did this "so the keybeam shows") lets one tap
+  fall through and hit *every* in-window note in the lane, defeating note-lock.
+- `HitObjectContainer.Compare` already orders **earlier objects to the front of the input queue**, so the
+  earliest hittable note is the one that consumes.
+- Because a hit now consumes the press, the **keybeam must observe it first**. `Lane` draws the keybeam at
+  the back via `CreateProxy()` but adds the real drawable *in front* of the hit objects for input; it
+  returns `false`, then the button consumes. (Mirrors mania's `DefaultKeyArea` sitting in front / proxied
+  columns — draw order and input order are deliberately decoupled.)
+- `BacOrderedHitPolicy.IsHittable` uses mania's **lenient** formula (`next == null || time <
+  next.StartTime`) + consumption + `HandleHit` force-miss — **not** a strict "only the earliest is
+  hittable" gate. The strict version would let a pending *missed* note block the next one until it
+  auto-misses.
 
 ## The path system (most hard-won detail lives here)
 
@@ -86,7 +127,8 @@ osu.Game.Rulesets.BigAssCircle/
   Objects/            hit objects (BacHitObject, BacButtonHitObject, BacPathStart/Child)
   Objects/Drawables/  drawable representations (DrawableBacButtonHitObject, DrawableBacPath/Child)
   Core/               enums (CardinalDirection, ...) and Core/Path (BacPath, BacPathControlPoint)
-  UI/                 playfield, scrolling container, Arc (the ring), DrawableRuleset
+  UI/                 BigAssCirclePlayfield → Ring → Lane, scrolling container, Arc (the ring),
+                      BacOrderedHitPolicy (note-lock), keybeam, DrawableRuleset
   Beatmaps/           BigAssCircleBeatmapConverter (osu → this ruleset)
 osu.Game.Rulesets.BigAssCircle.Tests/   TestSceneOsuPlayer (in-code beatmap), VisualTestRunner
 ```

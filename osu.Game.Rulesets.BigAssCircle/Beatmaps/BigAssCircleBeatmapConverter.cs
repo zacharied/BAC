@@ -8,7 +8,6 @@ using osu.Game.Beatmaps;
 using osu.Game.Rulesets.BigAssCircle.Core;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.BigAssCircle.Objects;
-using osu.Game.Rulesets.Objects.Types;
 
 namespace osu.Game.Rulesets.BigAssCircle.Beatmaps
 {
@@ -22,36 +21,16 @@ namespace osu.Game.Rulesets.BigAssCircle.Beatmaps
             random = new Random(beatmap.BeatmapInfo.GetDisplayTitle().GetHashCode());
         }
 
-        // todo: Check for conversion types that should be supported (ie. Beatmap.HitObjects.Any(h => h is IHasXPosition))
-        // https://github.com/ppy/osu/tree/master/osu.Game/Rulesets/Objects/Types
         public override bool CanConvert() => true;
 
         protected override IEnumerable<BacHitObject> ConvertHitObject(HitObject original, IBeatmap beatmap, CancellationToken cancellationToken)
         {
-            if (original is IHasPath path)
+            yield return new CardinalNote
             {
-                var bacPath = new BacPath();
-
-                foreach (var child in path.Path.ControlPoints)
-                {
-                    bacPath.ControlPoints.Add(new BacPathControlPoint
-                    {
-                        RotationOffset = random.Next(360),
-                        TimeOffset = path.Duration
-                    });
-                }
-
-                yield return new BacPathStartHitObject() { StartTime = original.StartTime, Path = bacPath };
-            }
-            else
-            {
-                yield return new BacButtonHitObject
-                {
-                    Samples = original.Samples,
-                    StartTime = original.StartTime,
-                    Direction = (CardinalDirection)random.Next(Enum.GetValues<CardinalDirection>().Length)
-                };
-            }
+                Samples = original.Samples,
+                StartTime = original.StartTime,
+                Direction = (CardinalDirection)random.Next(Enum.GetValues<CardinalDirection>().Length)
+            };
         }
     }
 }

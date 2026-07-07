@@ -43,7 +43,31 @@ namespace osu.Game.Rulesets.BigAssCircle
 
         public override IEnumerable<KeyBinding> GetDefaultKeyBindings(int variant = 0) => new[]
         {
-            new KeyBinding(InputKey.JoystickHat2Up, BigAssCircleAction.ButtonN),
+            // Two gamepad buttons per direction, each now bound to its own action: the d-pad button drives
+            // the "…1" action and the physically-matching face button drives the "…2" action.
+            //
+            // Each cardinal direction still sits at its matching on-screen position: an action is drawn at
+            // (cosθ, -sinθ) where θ = direction.ToRadians(), so East = right, North = up, West = left,
+            // South = down. Each physical button maps to the direction at that same screen position.
+            //
+            // The controller is opened as an SDL gamepad, so face buttons arrive as
+            // X=Joystick1, A=Joystick2, B=Joystick3, Y=Joystick4 and the d-pad as JoystickHat1*.
+
+            // Screen up -> North  (D-pad Up = N1, Y = N2)
+            new KeyBinding(InputKey.JoystickHat1Up, BigAssCircleAction.ButtonN1),
+            new KeyBinding(InputKey.Joystick4, BigAssCircleAction.ButtonN2),
+
+            // Screen right -> East  (D-pad Right = E1, B = E2)
+            new KeyBinding(InputKey.JoystickHat1Right, BigAssCircleAction.ButtonE1),
+            new KeyBinding(InputKey.Joystick3, BigAssCircleAction.ButtonE2),
+
+            // Screen down -> South  (D-pad Down = S1, A = S2)
+            new KeyBinding(InputKey.JoystickHat1Down, BigAssCircleAction.ButtonS1),
+            new KeyBinding(InputKey.Joystick2, BigAssCircleAction.ButtonS2),
+
+            // Screen left -> West  (D-pad Left = W1, X = W2)
+            new KeyBinding(InputKey.JoystickHat1Left, BigAssCircleAction.ButtonW1),
+            new KeyBinding(InputKey.Joystick1, BigAssCircleAction.ButtonW2),
         };
 
         public override Drawable CreateIcon() => new SpriteText

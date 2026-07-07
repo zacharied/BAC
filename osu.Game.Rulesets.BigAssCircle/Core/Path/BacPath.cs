@@ -4,5 +4,5 @@ namespace osu.Game.Rulesets.BigAssCircle.Objects;
 
 public class BacPath
 {
-    public BindableList<BacPathControlPoint> ControlPoints { get; init; }
+    public required BindableList<BacPathControlPoint> ControlPoints { get; init; }
 }

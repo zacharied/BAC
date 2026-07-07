@@ -15,7 +15,7 @@ namespace osu.Game.Rulesets.BigAssCircle.UI;
 /// Four decorative radial lines (spokes) at the 45° diagonals — the directions between the four
 /// <see cref="Core.CardinalDirection"/>s. Each spoke runs from the playfield centre out to the ring,
 /// using a horizontal gradient so it fades to transparent before it reaches the centre. Follows the
-/// same polar convention as <see cref="Arc"/>: <c>x = sin(θ)·r</c>, <c>y = cos(θ)·r</c>.
+/// same polar convention as <see cref="Arc"/>: <c>x = cos(θ)·r</c>, <c>y = -sin(θ)·r</c>.
 /// </summary>
 public sealed partial class PlayfieldRadialLines : Container
 {
@@ -96,5 +96,5 @@ public sealed partial class PlayfieldRadialLines : Container
         layoutCache.Validate();
     }
 
-    private static Vector2 positionAt(float radians, float radius) => new Vector2(MathF.Sin(radians) * radius, MathF.Cos(radians) * radius);
+    private static Vector2 positionAt(float radians, float radius) => new Vector2(MathF.Cos(radians) * radius, -MathF.Sin(radians) * radius);
 }

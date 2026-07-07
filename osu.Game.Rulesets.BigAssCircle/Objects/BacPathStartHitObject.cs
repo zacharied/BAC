@@ -1,11 +1,13 @@
 using System.Linq;
 using System.Threading;
+using osu.Game.Rulesets.BigAssCircle.Core;
 using osu.Game.Rulesets.Objects.Types;
 
 namespace osu.Game.Rulesets.BigAssCircle.Objects;
 
 public class BacPathStartHitObject : BacHitObject, IHasDuration
 {
+    public required HorizontalDirection Side;
     public BacPath Path;
 
     /// <summary>

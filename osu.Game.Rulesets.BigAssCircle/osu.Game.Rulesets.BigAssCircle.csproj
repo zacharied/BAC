@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup Label="Project">
     <TargetFramework>net8.0</TargetFramework>
     <AssemblyTitle>osu.Game.Rulesets.BigAssCircle</AssemblyTitle>
@@ -7,10 +7,39 @@
     <RootNamespace>osu.Game.Rulesets.BigAssCircle</RootNamespace>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+  <PropertyGroup Label="SvgTextures">
+    <!-- Source SVGs live here; rasterised PNGs are written to the base Textures dir. -->
+    <SvgSourceDir>Resources\Textures\SvgSource</SvgSourceDir>
+    <SvgOutputDir>Resources\Textures</SvgOutputDir>
+    <!-- Supersample factor over the SVG's 96 DPI intrinsic size (384 = 4x) for crisp scaling. -->
+    <SvgRasterDensity Condition="'$(SvgRasterDensity)' == ''">384</SvgRasterDensity>
+  </PropertyGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\**" />
+    <!-- SVG sources, rasterised to PNG by RasterizeSvgTextures below. Declared first so the
+         EmbeddedResource items can be derived from it. -->
+    <SvgTexture Include="$(SvgSourceDir)\*.svg" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Embed everything under Resources EXCEPT the raw SVG sources (build inputs, not shipped)
+         and the generated PNGs (added explicitly below with an evaluation-time manifest name). -->
+    <EmbeddedResource Include="Resources\**"
+                      Exclude="$(SvgSourceDir)\**;@(SvgTexture->'$(SvgOutputDir)\%(Filename).png')" />
+    <!-- The generated PNGs. Declared at evaluation time (not in a target) so their manifest
+         resource names are assigned normally; the files themselves are produced by
+         RasterizeSvgTextures before CoreCompile reads them. -->
+    <EmbeddedResource Include="@(SvgTexture->'$(SvgOutputDir)\%(Filename).png')" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="ppy.osu.Game" Version="2026.702.1" />
   </ItemGroup>
+
+  <!-- Rasterise SVG -> PNG via ImageMagick, before the compiler reads the embedded resources.
+       Incremental: only re-runs for SVGs whose PNG is missing or stale. -->
+  <Target Name="RasterizeSvgTextures"
+          BeforeTargets="BeforeCompile;CoreCompile"
+          Inputs="@(SvgTexture)"
+          Outputs="@(SvgTexture->'$(SvgOutputDir)\%(Filename).png')">
+    <MakeDir Directories="$(SvgOutputDir)" />
+    <Exec Command="magick -background none -density $(SvgRasterDensity) &quot;%(SvgTexture.FullPath)&quot; &quot;$(SvgOutputDir)\%(SvgTexture.Filename).png&quot;" />
+  </Target>
 </Project>

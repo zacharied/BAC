@@ -5,7 +5,7 @@
   top-edge "shine" glint. Rotate 90/180/270 in-engine for the other cardinals.
   The leading (larger) chevron sits in the direction the arrow points.
 -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" width="200" height="220">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 200 220" width="200" height="220">
   <defs>
     <!-- top-to-bottom shading: pure white highlight down to cool grey -->
     <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
@@ -47,16 +47,16 @@
 
   <g filter="url(#shadow)">
     <!-- base shaded fill -->
-    <use href="#big"   fill="url(#shade)"/>
-    <use href="#small" fill="url(#shade)"/>
+    <use xlink:href="#big"   fill="url(#shade)"/>
+    <use xlink:href="#small" fill="url(#shade)"/>
 
     <!-- gloss pass on top of the fill -->
-    <use href="#big"   fill="url(#gloss)"/>
-    <use href="#small" fill="url(#gloss)"/>
+    <use xlink:href="#big"   fill="url(#gloss)"/>
+    <use xlink:href="#small" fill="url(#gloss)"/>
 
     <!-- crisp black outline drawn last so it stays sharp over the gloss -->
-    <use href="#big"   fill="none" stroke="#000000" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
-    <use href="#small" fill="none" stroke="#000000" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+    <use xlink:href="#big"   fill="none" stroke="#000000" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+    <use xlink:href="#small" fill="none" stroke="#000000" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
 
     <!-- rim-light glint along the top edges -->
     <path d="M32,88 L100,34 L168,88" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>

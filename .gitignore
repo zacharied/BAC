@@ -340,3 +340,6 @@ inspectcode
 # Fody (pulled in by Realm) - schema file
 FodyWeavers.xsd
 **/FodyWeavers.xml
+
+# BigAssCircle: PNGs rasterised from Resources/Textures/SvgSource at build time
+osu.Game.Rulesets.BigAssCircle/Resources/Textures/*.png
