@@ -11,6 +11,7 @@ using osu.Framework.Utils;
 using osu.Game.Rulesets.BigAssCircle.Core;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
+using osu.Game.Rulesets.Scoring;
 using osuTK;
 
 namespace osu.Game.Rulesets.BigAssCircle.Objects.Drawables;
@@ -29,14 +30,8 @@ namespace osu.Game.Rulesets.BigAssCircle.Objects.Drawables;
 /// list of cartesian vertices each frame — subdividing every link in polar space so constant-radius
 /// links render as arcs, and clipping each link to the visible band <c>[0, ScrollLength]</c>.
 /// </summary>
-public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
+public partial class DrawableSliderBody : DrawableBacHitObject<SliderBody>
 {
-    // Typed accessor over the base BacHitObject, mirroring DrawableSlider.HitObject.
-    // Retyping the drawable to the base BacHitObject (rather than BacPathStartHitObject) is what
-    // lets DrawableBigAssCircleRuleset.CreateDrawableRepresentation return it as a
-    // DrawableHitObject<BacHitObject> — generic drawables are invariant.
-    public new BacPathStartHitObject HitObject => (BacPathStartHitObject)base.HitObject;
-
     /// <summary>
     /// Full width of the rendered line, in pixels. Half of this becomes the <see cref="Path.PathRadius"/>.
     /// </summary>
@@ -63,7 +58,7 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
     /// Because interpolation happens in polar space, a link whose endpoints share a radius renders as
     /// an arc rather than a chord; more sub-segments make that arc smoother.
     /// </summary>
-    private const int segments_per_link = 12;
+    private const int segments_per_link = 1;
 
     [Resolved]
     private BigAssCircleScrollingHitObjectContainer scrollingContainer { get; set; } = null!;
@@ -83,7 +78,7 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
     // Nested child hit objects live here so they receive a clock and are updated/judged like any
     // other DrawableHitObject. They draw nothing (the path visuals come entirely from pathContainer);
     // without a real parent in the tree, OnKilled would dereference a null clock.
-    private readonly Container<DrawableBacPathChild> nestedContainer = new()
+    private readonly Container<DrawableHitObject> nestedContainer = new()
     {
         RelativeSizeAxes = Axes.Both,
     };
@@ -106,7 +101,7 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
     // Reused each frame to accumulate the vertices of the contiguous run currently being built.
     private readonly List<Vector2> scratchVertices = new();
 
-    public DrawableBacPath(BacPathStartHitObject? hitObject = null)
+    public DrawableSliderBody(SliderBody hitObject)
         : base(hitObject)
     {
         RelativeSizeAxes = Axes.Both;
@@ -313,10 +308,7 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
 
     protected override void CheckForResult(bool userTriggered, double timeOffset)
     {
-        // The path is fully emerged once every node has reached the arc, i.e. at its end time.
-        if (Time.Current >= HitObject.EndTime)
-            // todo: implement judgement logic
-            ApplyMaxResult();
+        ApplyResult(HitResult.IgnoreHit);
     }
 
     protected override void UpdateHitStateTransforms(ArmedState state)
@@ -430,25 +422,24 @@ public partial class DrawableBacPath : DrawableHitObject<BacHitObject>
 
     protected override DrawableHitObject CreateNestedHitObject(HitObject hitObject)
     {
-        if (hitObject is BacPathChildHitObject child)
+        return hitObject switch
         {
-            return new DrawableBacPathChild(child);
-        }
-
-        throw new InvalidOperationException($"cannot create nested hit object for type {hitObject.GetType().Name}");
+            SliderChild child => new DrawableSliderChild(child),
+            SliderHead head => new DrawableSliderHead(head),
+            _ => throw new InvalidOperationException($"cannot create nested hit object for type {hitObject.GetType().Name}")
+        };
     }
 
     protected override void AddNestedHitObject(DrawableHitObject hitObject)
     {
-        base.AddNestedHitObject(hitObject);
+        if (hitObject is not (DrawableSliderChild or DrawableSliderHead))
+            throw new InvalidOperationException($"cannot add child of type {hitObject.GetType()}");
 
-        if (hitObject is DrawableBacPathChild child)
-            nestedContainer.Add(child);
+        nestedContainer.Add(hitObject);
     }
 
     protected override void ClearNestedHitObjects()
     {
-        base.ClearNestedHitObjects();
         nestedContainer.Clear(false);
     }
 }

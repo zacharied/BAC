@@ -7,6 +7,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Game.Rulesets.BigAssCircle.Core;
 using osu.Game.Rulesets.BigAssCircle.Objects;
+using osu.Game.Rulesets.BigAssCircle.Objects.Drawables;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.UI;
@@ -21,7 +22,7 @@ namespace osu.Game.Rulesets.BigAssCircle.UI;
 ///
 /// Paths sweep across every direction, so they are not lane objects: they live in the ring's own
 /// <see cref="HitObjectContainer"/> (as bar lines do in a mania stage). That container also provides the
-/// polar geometry a <see cref="Objects.Drawables.DrawableBacPath"/> resolves each frame.
+/// polar geometry a <see cref="DrawableSliderBody"/> resolves each frame.
 /// </summary>
 [Cached]
 public partial class Ring : Playfield

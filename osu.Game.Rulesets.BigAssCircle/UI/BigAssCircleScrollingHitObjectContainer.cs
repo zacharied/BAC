@@ -84,7 +84,7 @@ internal partial class BigAssCircleScrollingHitObjectContainer : HitObjectContai
 
     public float DistanceFromCentreAtTime(double time) => DistanceFromCentreAtTime(time, Time.Current);
 
-    public Vector2 PositionAtTime(DrawableBacButtonHitObject obj, double time, double currentTime, double? originTime = null)
+    public Vector2 PositionAtTime(DrawableCardinalNote obj, double time, double currentTime, double? originTime = null)
     {
         float radians = ((CardinalNote)obj.HitObject).Direction.ToRadians();
         float distanceFromCentre = ProgressAtTime(time, currentTime, originTime);
@@ -159,7 +159,7 @@ internal partial class BigAssCircleScrollingHitObjectContainer : HitObjectContai
         {
             // Paths are not point-positioned like buttons; they compute their own
             // per-node geometry each frame (see DrawableBacPath.UpdatePath).
-            if (entry.Value is not DrawableBacButtonHitObject obj)
+            if (entry.Value is not DrawableCardinalNote obj)
                 continue;
 
             updatePosition(obj, Time.Current);
@@ -205,7 +205,7 @@ internal partial class BigAssCircleScrollingHitObjectContainer : HitObjectContai
             entry.LifetimeEnd = entry.HitObject.GetEndTime() + timeRange.Value;
     }
 
-    private void updateLayoutRecursive(DrawableBacButtonHitObject hitObject, double? parentHitObjectStartTime = null)
+    private void updateLayoutRecursive(DrawableCardinalNote hitObject, double? parentHitObjectStartTime = null)
     {
         parentHitObjectStartTime ??= hitObject.HitObject.StartTime;
 
@@ -216,17 +216,17 @@ internal partial class BigAssCircleScrollingHitObjectContainer : HitObjectContai
 
         foreach (var obj in hitObject.NestedHitObjects)
         {
-            updateLayoutRecursive((DrawableBacButtonHitObject)obj, parentHitObjectStartTime);
+            updateLayoutRecursive((DrawableCardinalNote)obj, parentHitObjectStartTime);
 
             // Nested hitobjects don't need to scroll, but they do need accurate positions and start lifetime
-            updatePosition((DrawableBacButtonHitObject)obj, hitObject.HitObject.StartTime, parentHitObjectStartTime);
+            updatePosition((DrawableCardinalNote)obj, hitObject.HitObject.StartTime, parentHitObjectStartTime);
 
             if (obj.Entry != null)
                 setComputedLifetime(obj.Entry);
         }
     }
 
-    private void updatePosition(DrawableBacButtonHitObject hitObject, double currentTime, double? parentHitObjectStartTime = null)
+    private void updatePosition(DrawableCardinalNote hitObject, double currentTime, double? parentHitObjectStartTime = null)
     {
         var position = PositionAtTime(hitObject, hitObject.HitObject.StartTime, currentTime, parentHitObjectStartTime);
         hitObject.Position = position;

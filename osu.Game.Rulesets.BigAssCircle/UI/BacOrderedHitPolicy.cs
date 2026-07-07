@@ -46,7 +46,7 @@ public class BacOrderedHitPolicy
             if (obj.Judged)
                 continue;
 
-            if (obj is DrawableBacButtonHitObject button)
+            if (obj is DrawableCardinalNote button)
                 button.MissForcefully();
         }
     }

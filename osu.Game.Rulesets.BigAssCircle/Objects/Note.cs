@@ -8,4 +8,6 @@ internal abstract partial class Note : BacHitObject
     {
         return base.CreateHitWindows();
     }
+
+    public abstract BigAssCircleButtonInput ButtonInput { get; }
 }

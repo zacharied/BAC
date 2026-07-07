@@ -14,7 +14,7 @@ public class BacTestBeatmapGenerator
         {
             HitObjects =
             [
-                new BacPathStartHitObject()
+                new SliderBody()
                 {
                     StartTime = 2000,
                     Side = HorizontalDirection.Right,
@@ -36,7 +36,7 @@ public class BacTestBeatmapGenerator
                         ])
                     }
                 },
-                new BacPathStartHitObject()
+                new SliderBody()
                 {
                     StartTime = 5000,
                     Side = HorizontalDirection.Left,

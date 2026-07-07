@@ -1,6 +1,9 @@
 namespace osu.Game.Rulesets.BigAssCircle.Objects.Drawables;
 
-internal class DrawableShoulderNote
+internal partial class DrawableShoulderNote : DrawableNote<ShoulderNote>
 {
-
+    public DrawableShoulderNote(ShoulderNote hitObject)
+        : base(hitObject)
+    {
+    }
 }

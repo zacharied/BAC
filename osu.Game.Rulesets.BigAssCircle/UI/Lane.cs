@@ -64,7 +64,7 @@ public partial class Lane : Playfield
     {
         base.OnNewDrawableHitObject(drawableHitObject);
 
-        if (drawableHitObject is DrawableBacButtonHitObject button)
+        if (drawableHitObject is DrawableCardinalNote button)
             button.CheckHittable = hitPolicy.IsHittable;
     }
 

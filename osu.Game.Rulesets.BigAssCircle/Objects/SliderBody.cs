@@ -5,7 +5,7 @@ using osu.Game.Rulesets.Objects.Types;
 
 namespace osu.Game.Rulesets.BigAssCircle.Objects;
 
-public class BacPathStartHitObject : BacHitObject, IHasDuration
+public class SliderBody : BacHitObject, IHasDuration
 {
     public required HorizontalDirection Side;
     public BacPath Path;
@@ -28,16 +28,22 @@ public class BacPathStartHitObject : BacHitObject, IHasDuration
 
     public double EndTime => StartTime + Duration;
 
-    public BacPathStartHitObject()
+    public SliderBody()
     {
     }
 
     protected override void CreateNestedHitObjects(CancellationToken cancellationToken)
     {
+        AddNested(new SliderHead()
+        {
+            StartTime = StartTime,
+        });
+
         foreach (var controlPoint in Path.ControlPoints)
         {
-            var childHitObject = new BacPathChildHitObject(controlPoint)
+            var childHitObject = new SliderChild(controlPoint)
             {
+                Parent = this,
                 StartTime = StartTime + controlPoint.TimeOffset,
             };
             AddNested(childHitObject);
