@@ -16,9 +16,4 @@ public static class HorizontalDirectionExtensions
         HorizontalDirection.Left => 180,
         _ => throw new InvalidOperationException()
     };
-
-    public static HorizontalDirection FromAngle(int angleDeg)
-    {
-        return (HorizontalDirection)((angleDeg % 360) / 90);
-    }
 }

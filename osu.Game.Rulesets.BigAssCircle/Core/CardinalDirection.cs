@@ -22,8 +22,14 @@ public static class CardinalDirectionExtensions
         return (int)direction * 90;
     }
 
+    /// <summary>
+    /// The cardinal direction nearest to <paramref name="angleDeg"/>. The angle is normalised into
+    /// <c>[0, 360)</c> (so negatives are handled) and rounded to the closest quadrant — e.g. 46° → North,
+    /// 315° → East. Exact half-way angles (45°, 135°, …) round up to the next counter-clockwise cardinal.
+    /// </summary>
     public static CardinalDirection FromAngle(int angleDeg)
     {
-        return (CardinalDirection)((angleDeg % 360) / 90);
+        int normalised = ((angleDeg % 360) + 360) % 360;
+        return (CardinalDirection)(((normalised + 45) / 90) % 4);
     }
 }

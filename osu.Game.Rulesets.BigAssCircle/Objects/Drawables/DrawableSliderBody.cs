@@ -31,7 +31,7 @@ namespace osu.Game.Rulesets.BigAssCircle.Objects.Drawables;
 /// list of cartesian vertices each frame — subdividing every link in polar space so constant-radius
 /// links render as arcs, and clipping each link to the visible band <c>[0, ScrollLength]</c>.
 /// </summary>
-public partial class DrawableSliderBody : DrawableBacHitObject<SliderBody>
+public partial class DrawableSliderBody : DrawableBacHitObject<SliderBody>, ISelfPosition
 {
     /// <summary>
     /// Full width of the rendered line, in pixels. Half of this becomes the <see cref="Path.PathRadius"/>.

@@ -158,9 +158,9 @@ internal partial class BigAssCircleScrollingHitObjectContainer : HitObjectContai
         // We are not using AliveObjects directly to avoid selection/sorting overhead since we don't care about the order at which positions will be updated.
         foreach (var entry in AliveEntries)
         {
-            // Paths are not point-positioned like notes; they compute their own
-            // per-node geometry each frame (see DrawableSliderBody.updatePath).
-            if (entry.Value is not { } obj || obj.HitObject is not IHasCardinalDirection)
+            // Point-position anything that carries an angle, except drawables that manage their own
+            // geometry each frame (ISelfPosition — e.g. paths, see DrawableSliderBody.updatePath).
+            if (entry.Value is not { } obj || obj is ISelfPosition || obj.HitObject is not IHasAngle)
                 continue;
 
             updatePosition(obj, Time.Current);

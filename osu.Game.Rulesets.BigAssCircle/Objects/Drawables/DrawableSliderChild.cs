@@ -8,7 +8,7 @@ using osu.Game.Screens.Play;
 
 namespace osu.Game.Rulesets.BigAssCircle.Objects.Drawables;
 
-internal partial class DrawableSliderChild : DrawableHitObject<SliderChild>
+internal partial class DrawableSliderChild : DrawableHitObject<SliderChild>, ISelfPosition
 {
     [Resolved]
     private AnalogInputManager analogInput { get; set; }
@@ -89,7 +89,7 @@ internal partial class DrawableSliderChild : DrawableHitObject<SliderChild>
             return;
 
         bool catching = analogInput.SliderCatchers[HitObject.Parent.Side]
-            .IsCatchingAt((int)body.AngleDegAt(now));
+                                   .IsCatchingAt((int)body.AngleDegAt(now));
 
         // Start a new run when the state flips, otherwise extend the current run.
         if (currentCatchRecord is null || currentCatchRecord.IsCatching != catching)

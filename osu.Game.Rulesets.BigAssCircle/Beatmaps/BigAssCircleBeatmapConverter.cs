@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using osu.Game.Beatmaps;
+using osu.Game.Rulesets.BigAssCircle.Core;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.BigAssCircle.Objects;
 
@@ -28,7 +29,7 @@ namespace osu.Game.Rulesets.BigAssCircle.Beatmaps
             {
                 Samples = original.Samples,
                 StartTime = original.StartTime,
-                AngleDeg = random.Next(360),
+                AngleDeg = ((CardinalDirection)random.Next(Enum.GetValues<CardinalDirection>().Length)).ToDegrees()
             };
         }
     }

@@ -22,7 +22,15 @@ Nullability is enabled. For BigAssCircle classes, assume objects are non-null un
 - **Polar coordinate system** centred on the playfield. Convention everywhere (notes, `Arc`, paths):
   `x = cos(θ)·r`, `y = -sin(θ)·r` (screen y is down). So `θ = 0` points **right** (East) and θ increases
   **counter-clockwise**: East→right, North→up, West→left, South→down. `CardinalDirection.ToRadians()`
-  gives East=0, North=π/2, West=π, South=3π/2.
+  gives East=0, North=π/2, West=π, South=3π/2 (`.ToDegrees()` gives 0/90/180/270). Angle/radian
+  conversion lives in `MathUtils` (`DegToRad`/`RadToDeg`).
+- **Every positioned object carries an arbitrary angle via `IHasAngle` (`int AngleDeg`).** This is the
+  authority for *where* an object is painted — objects are no longer pinned to four cardinal lanes; an
+  angle can be anything `[0, 360)`. `PositionAtTime` reads `AngleDeg` off `IHasAngle` (falling back to 0).
+  Cardinal `Direction` is now *derived* from the angle (`CardinalDirection.FromAngle`, which normalises
+  and rounds to the **nearest** cardinal) and only governs **which button/lane** the note belongs to — so
+  angle drives position, nearest quadrant drives input/note-lock. `SliderBody`/`Head`/`Child` and both note types implement
+  `IHasAngle`; slider nodes derive theirs as `SliderBody.AngleDeg + RotationOffset`.
 - The **scroll algorithm maps TIME → RADIUS**: an object sits at the centre one `TimeRange` before its
   time and reaches the ring (`ScrollLength = min(width,height)/2`) exactly at its time — that is why
   things emerge from the centre.
@@ -35,8 +43,11 @@ Nullability is enabled. For BigAssCircle classes, assume objects are non-null un
     notes) plus one on the `Ring` (holding cross-lane paths). All are full-size and compute identical
     geometry. A `DrawableSliderBody` `[Resolved]`s the nearest one (the ring's), which is why paths must
     live in the ring's container, not a lane's. See "Playfield structure".
-- The container's alive-loop only *positions* `DrawableCardinalNote` (it skips everything else). **Paths
-  self-manage their geometry each frame** in `DrawableSliderBody.updatePath`.
+- The container's alive-loop point-positions every drawable whose hit object is `IHasAngle`, **except
+  those whose drawable implements `ISelfPosition`** (`Objects/Drawables/`) — the marker for "I compute my
+  own geometry each frame." The slider drawables (`DrawableSliderBody`/`Head`/`Child`) carry it, so
+  **paths self-manage their geometry** in `DrawableSliderBody.updatePath` while notes get point-positioned.
+  Any new point-positioned object just needs `IHasAngle`; any new self-managing one adds `ISelfPosition`.
 
 ## Hit objects
 
@@ -45,22 +56,26 @@ Nullability is enabled. For BigAssCircle classes, assume objects are non-null un
 
 - **Notes** (single timed presses). `Note : BacHitObject` (abstract) exposes a `ButtonInput`; its drawable
   `DrawableNote<T>` is an `IKeyBindingHandler<BigAssCircleAction>`.
-  - `CardinalNote` — a hit in one of four `CardinalDirection`s (→ `ButtonE/N/W/S`). Drawn by
-    `DrawableCardinalNote` (a "square" sprite with spawn/hit/miss transforms). Both note drawables back
-    note-lock via `IHittableNote.MissForcefully()` (implemented on the `DrawableNote<T>` base).
-  - `ShoulderNote` — a hit on one `HorizontalDirection` side (→ `ButtonL/R`). Its `Direction` maps
-    Left→West / Right→East (via `IHasCardinalDirection`) purely for *positioning* — it rides its **own**
-    lane (one per side), separate from the cardinal West/East lanes, so shoulder and cardinal note-lock
-    never interfere. Drawn by `DrawableShoulderNote` — the curved **paddle** sprite, rotated to face its
-    angle (180° for West) and auto-sized so its curvature radius matches the ring (`height = ScrollLength`,
-    since the art's curve radius ≈ its own height).
-- **Sliders** (analog-stick held objects). `SliderBody : BacHitObject, IHasDuration` — a `Side`
-  (`HorizontalDirection`), a `BacPath` (`DirectionDeg` = initial angle + control points), and
-  `Duration`/`EndTime` derived from the furthest-in-time control point. It nests one `SliderHead` (the
-  start node) and one `SliderChild` per control point. Drawn by `DrawableSliderBody` — see "The path
-  system" and "Slider edge animation".
-- `BacSlamEdge : BacHitObject` (`Side`, `RotationalDirection`, `Angle`) exists as a model but has no
-  drawable yet.
+  - `CardinalNote` — carries a raw `AngleDeg` (`IHasAngle`) that sets its painted position; its
+    `Direction` is *derived* (`CardinalDirection.FromAngle`) and only selects the button (→ `ButtonE/N/W/S`)
+    and note-lock lane. Drawn by `DrawableCardinalNote` (a "square" sprite with spawn/hit/miss transforms;
+    the sprite is not rotated to the angle). Both note drawables back note-lock via
+    `IHittableNote.MissForcefully()` (implemented on the `DrawableNote<T>` base).
+  - `ShoulderNote` — a hit on one `HorizontalDirection` `Side` (→ `ButtonL/R`). `AngleDeg` comes from
+    `Side.ToAngleDeg()` (Right→0/East, Left→180/West) and its derived `Direction` (via
+    `IHasCardinalDirection`) picks the lane — it rides its **own** lane (one per side), separate from the
+    cardinal West/East lanes, so shoulder and cardinal note-lock never interfere. Drawn by
+    `DrawableShoulderNote` — the curved **paddle** sprite, rotated to face its angle (180° for West) and
+    auto-sized so its curvature radius matches the ring (`height = ScrollLength`, since the art's curve
+    radius ≈ its own height).
+- **Sliders** (analog-stick held objects). `SliderBody : BacHitObject, IHasDuration, IHasAngle` — a `Side`
+  (`HorizontalDirection`), an `AngleDeg` (initial angle; each `BacPathControlPoint.RotationOffset` is
+  relative to it), a `BacPath`, and `Duration`/`EndTime` derived from the furthest-in-time control point.
+  It nests one `SliderHead` (angle = body's) and one `SliderChild` per control point (angle =
+  `body.AngleDeg + RotationOffset`); both are `IHasAngle` and take the body via constructor. Drawn by
+  `DrawableSliderBody` — see "The path system" and "Slider edge animation".
+- `BacSlamEdge` / `BacSlamCentered` — `BacHitObject, IHasAngle` (`Side`, `AngleDeg`; edge also
+  `RotationalDirection`) exist as models but have no drawables yet.
 
 Top-level drawable dispatch: `DrawableBigAssCircleRuleset.CreateDrawableRepresentation` maps
 `SliderBody → DrawableSliderBody` and `CardinalNote → DrawableCardinalNote`. `SliderHead`/`SliderChild`/
@@ -122,9 +137,9 @@ ring's container, not a lane.
 
 ## The path system (most hard-won detail lives here)
 
-A path = **start node** `(angle = DirectionDeg, time = StartTime)` + control points (`BacPath` holds a
-`BindableList<BacPathControlPoint>`, in `Core/Path/`). Control point `i` defines **node `i+1`** at
-`(DirectionDeg + RotationOffset, StartTime + TimeOffset)`. It renders as a subdivided polyline in polar
+A path = **start node** `(angle = SliderBody.AngleDeg, time = StartTime)` + control points (`BacPath` holds
+a `BindableList<BacPathControlPoint>`, in `Core/Path/`). Control point `i` defines **node `i+1`** at
+`(AngleDeg + RotationOffset, StartTime + TimeOffset)`. It renders as a subdivided polyline in polar
 space (`DrawableSliderBody.updatePath`), delegating to `SmoothPath` for thickness / joints / AA.
 
 - **Radius is linear-in-time per link.** Each link is clipped to the visible band with Liang–Barsky
@@ -216,11 +231,12 @@ The animation is purely visual and independent of the per-child judgement.
 
 ```
 osu.Game.Rulesets.BigAssCircle/
-  Objects/            hit objects (BacHitObject; Note/CardinalNote/ShoulderNote; SliderBody/Head/Child; BacSlamEdge)
+  Objects/            hit objects (BacHitObject; IHasAngle; Note/CardinalNote/ShoulderNote; SliderBody/Head/Child; BacSlamEdge/Centered)
   Objects/Drawables/  drawable representations (DrawableCardinalNote, DrawableSliderBody/Head/Child, …)
   Objects/Judgement/  slider judgement result / hit windows
-  Core/               enums (CardinalDirection, HorizontalDirection, RotationalDirection)
+  Core/               enums + extensions (CardinalDirection, HorizontalDirection, RotationalDirection)
   Core/Path/          BacPath, BacPathControlPoint
+  MathUtils/          MathUtils (DegToRad / RadToDeg helpers)
   Input/              AnalogInputManager (+ SliderCatcher)
   UI/                 BigAssCirclePlayfield → Ring → Lane, scrolling container, Arc (the ring),
                       BacOrderedHitPolicy (note-lock), PlayfieldKeybeam, StickIndicator, DrawableRuleset

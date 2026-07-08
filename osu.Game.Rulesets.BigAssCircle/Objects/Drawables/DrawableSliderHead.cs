@@ -1,6 +1,6 @@
 namespace osu.Game.Rulesets.BigAssCircle.Objects.Drawables;
 
-public partial class DrawableSliderHead : DrawableBacHitObject<SliderHead>
+public partial class DrawableSliderHead : DrawableBacHitObject<SliderHead>, ISelfPosition
 {
     public DrawableSliderHead(SliderHead hitObject)
         : base(hitObject)
