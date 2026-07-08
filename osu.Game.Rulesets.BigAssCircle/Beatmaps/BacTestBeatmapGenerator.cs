@@ -84,6 +84,25 @@ public class BacTestBeatmapGenerator
                 {
                     StartTime = 3500,
                     Side = HorizontalDirection.Left,
+                },
+                new HoldNote()
+                {
+                    StartTime = 6000,
+                    Duration = 1000,
+                    AngleDeg = 180,
+                },
+                new HoldNote()
+                {
+                    StartTime = 8000,
+                    Duration = 2000,
+                    AngleDeg = 270,
+                },
+                // A hold shorter than the head press window: the deferred tail should just inherit the head.
+                new HoldNote()
+                {
+                    StartTime = 11000,
+                    Duration = 80,
+                    AngleDeg = 0,
                 }
             ]
         };

@@ -8,7 +8,7 @@ using osu.Game.Tests.Visual;
 
 namespace osu.Game.Rulesets.BigAssCircle.Tests
 {
-    [TestFixture]
+    [TestFixture(TestName = "Default Chart")]
     public partial class TestSceneOsuPlayer : PlayerTestScene
     {
         protected override Ruleset CreatePlayerRuleset() => new BigAssCircleRuleset();

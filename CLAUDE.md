@@ -68,6 +68,23 @@ Nullability is enabled. For BigAssCircle classes, assume objects are non-null un
     `DrawableShoulderNote` — the curved **paddle** sprite, rotated to face its angle (180° for West) and
     auto-sized so its curvature radius matches the ring (`height = ScrollLength`, since the art's curve
     radius ≈ its own height).
+  - `HoldNote` — a `CardinalNote` with a `Duration` (`Note, IHasCardinalDirection, IHasAngle, IHasDuration`);
+    rides the same cardinal lane as a `CardinalNote` at its angle. Drawn by `DrawableHoldNote` (an
+    `ISelfPosition` object like the slider body): a square head sprite plus a straight radial **trailing
+    line** (a two-vertex `SmoothPath` from the head at `StartTime` inward to the tail at `EndTime` — the tail
+    is *closer to the centre* because it is later in time; a plain radial clamp to `[0, ScrollLength]` is
+    correct here since there is no swept contact point). **Judgement is two-part:** it nests a
+    `HoldNoteHead` (angle/button from the parent) judged exactly like a cardinal note; the parent hold owns
+    input (delegating the head press via `DrawableHoldNoteHead.UpdateResult()`) and judges the **tail** with
+    `DrawableSliderChild`'s time-accumulation over `[StartTime, EndTime]` (`holdPresses > 0` per frame → caught
+    runs, independent of the head), graded finely (top tier ≥99% caught). The tail result is **deferred until
+    the head is judged** (`CheckForResult` no-ops until `Head.Judged`). **Head carryover is short-hold-only:**
+    only when `Duration < head miss window` (no meaningful body) does a missed head fail the whole hold and the
+    head's grade cap the result / a body-less hold inherit it. For normal-length holds the body is judged purely
+    on how much was held, so missing the head only costs the head's own judgement — it never fails the hold.
+    Re-grabbable (release/press just flips `holdPresses`); the trail greys (`Colour = Gray`) while active but not
+    held. `MissForcefully()` is a **no-op** (the hold always self-resolves at the tail, so note-lock must not
+    nuke it).
 - **Sliders** (analog-stick held objects). `SliderBody : BacHitObject, IHasDuration, IHasAngle` — a `Side`
   (`HorizontalDirection`), an `AngleDeg` (initial angle; each `BacPathControlPoint.RotationOffset` is
   relative to it), a `BacPath`, and `Duration`/`EndTime` derived from the furthest-in-time control point.
@@ -78,8 +95,9 @@ Nullability is enabled. For BigAssCircle classes, assume objects are non-null un
   `RotationalDirection`) exist as models but have no drawables yet.
 
 Top-level drawable dispatch: `DrawableBigAssCircleRuleset.CreateDrawableRepresentation` maps
-`SliderBody → DrawableSliderBody` and `CardinalNote → DrawableCardinalNote`. `SliderHead`/`SliderChild`/
-`ShoulderNote` are nested and created by their parents' `CreateNestedHitObject`, not dispatched here.
+`SliderBody → DrawableSliderBody`, `CardinalNote → DrawableCardinalNote`, `HoldNote → DrawableHoldNote` and
+`ShoulderNote → DrawableShoulderNote`. `SliderHead`/`SliderChild`/`HoldNoteHead` are nested and created by
+their parents' `CreateNestedHitObject`, not dispatched here.
 
 Every drawable derives from `DrawableBacHitObject<T> : DrawableHitObject<BacHitObject>` (with a `new T
 HitObject` shadow). Because it is typed to the **base** `BacHitObject` (generic drawables are invariant),

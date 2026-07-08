@@ -33,6 +33,7 @@ namespace osu.Game.Rulesets.BigAssCircle.UI
         {
             SliderBody path => new DrawableSliderBody(path),
             CardinalNote button => new DrawableCardinalNote(button),
+            HoldNote hold => new DrawableHoldNote(hold),
             ShoulderNote note => new DrawableShoulderNote(note)
         };
 

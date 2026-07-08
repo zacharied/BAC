@@ -87,7 +87,7 @@ internal partial class BigAssCircleScrollingHitObjectContainer : HitObjectContai
 
     public Vector2 PositionAtTime(DrawableHitObject obj, double time, double currentTime, double? originTime = null)
     {
-        float radians = obj.HitObject is IHasAngle angleObj ? MathUtils.DegToRad(angleObj.AngleDeg) : 0;
+        float radians = obj.HitObject is IHasAngle angleObj ? MathUtils.DegToRad(angleObj.AngleDeg) : 0; // TODO Barline hitobject
         float distanceFromCentre = ProgressAtTime(time, currentTime, originTime);
 
         var localPosition = new Vector2(MathF.Cos(radians) * distanceFromCentre, -MathF.Sin(radians) * distanceFromCentre);

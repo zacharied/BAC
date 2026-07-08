@@ -111,6 +111,7 @@ public partial class Ring : Playfield
     private Lane? laneFor(HitObject hitObject) => hitObject switch
     {
         CardinalNote c => cardinalLanes[(int)c.Direction],
+        HoldNote h => cardinalLanes[(int)h.Direction],
         ShoulderNote s => shoulderLanes[shoulderIndex(s.Side)],
         _ => null
     };

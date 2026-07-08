@@ -20,7 +20,7 @@ internal abstract partial class DrawableNote<T> : DrawableBacHitObject<T>, IKeyB
     /// Forces this object to be missed, disregarding <see cref="CheckForResult"/>. Used by the lane's
     /// hit policy to note-lock earlier objects when a later one is hit.
     /// </summary>
-    public void MissForcefully() => ApplyMinResult();
+    public virtual void MissForcefully() => ApplyMinResult();
 
     protected override void CheckForResult(bool userTriggered, double timeOffset)
     {
@@ -39,7 +39,7 @@ internal abstract partial class DrawableNote<T> : DrawableBacHitObject<T>, IKeyB
         ApplyResult(result);
     }
 
-    public bool OnPressed(KeyBindingPressEvent<BigAssCircleAction> e)
+    public virtual bool OnPressed(KeyBindingPressEvent<BigAssCircleAction> e)
     {
         if (e.Action.ToButtonInput() != HitObject.ButtonInput)
             return false;
@@ -54,7 +54,7 @@ internal abstract partial class DrawableNote<T> : DrawableBacHitObject<T>, IKeyB
         return UpdateResult(true);
     }
 
-    public void OnReleased(KeyBindingReleaseEvent<BigAssCircleAction> e)
+    public virtual void OnReleased(KeyBindingReleaseEvent<BigAssCircleAction> e)
     {
     }
 }
