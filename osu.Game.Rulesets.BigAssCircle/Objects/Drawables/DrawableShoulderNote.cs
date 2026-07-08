@@ -68,7 +68,7 @@ internal partial class DrawableShoulderNote : DrawableNote<ShoulderNote>
 
         // The paddle art faces East; rotate it to face this note's lane direction (screen rotation is
         // clockwise-positive while the polar angle is counter-clockwise, hence the negation). West → 180°.
-        Rotation = -HitObject.Direction.ToRadians() * 180f / MathF.PI;
+        Rotation = -HitObject.Direction.ToDegrees();
     }
 
     protected override void Update()

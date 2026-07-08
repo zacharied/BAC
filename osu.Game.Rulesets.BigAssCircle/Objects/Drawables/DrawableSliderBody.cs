@@ -214,14 +214,14 @@ public partial class DrawableSliderBody : DrawableBacHitObject<SliderBody>
         linkEasing = new Easing[linkCount];
 
         // Node 0 is the start node itself.
-        nodeRadians[0] = toRadians(start.DirectionDeg);
+        nodeRadians[0] = toRadians(start.AngleDeg);
         nodeTimes[0] = start.StartTime;
 
         for (int i = 0; i < linkCount; i++)
         {
             var controlPoint = controlPoints[i];
 
-            nodeRadians[i + 1] = toRadians(start.DirectionDeg + controlPoint.RotationOffset);
+            nodeRadians[i + 1] = toRadians(start.AngleDeg + controlPoint.RotationOffset);
             nodeTimes[i + 1] = start.StartTime + controlPoint.TimeOffset;
 
             // A control point governs the segment leading into it: link[i] ends at node[i + 1] = CP[i].
@@ -520,7 +520,7 @@ public partial class DrawableSliderBody : DrawableBacHitObject<SliderBody>
     {
         // No links: the body is a single node, so its angle is constant.
         if (nodeTimes.Length < 2)
-            return HitObject.DirectionDeg;
+            return HitObject.AngleDeg;
 
         if (time <= nodeTimes[0])
             return toDegrees(nodeRadians[0]);

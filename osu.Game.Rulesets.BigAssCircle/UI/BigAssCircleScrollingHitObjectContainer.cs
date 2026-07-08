@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
+using osu.Framework.Extensions.ObjectExtensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Primitives;
 using osu.Framework.Layout;
@@ -86,7 +87,7 @@ internal partial class BigAssCircleScrollingHitObjectContainer : HitObjectContai
 
     public Vector2 PositionAtTime(DrawableHitObject obj, double time, double currentTime, double? originTime = null)
     {
-        float radians = ((IHasCardinalDirection)obj.HitObject).Direction.ToRadians();
+        float radians = obj.HitObject is IHasAngle angleObj ? MathUtils.DegToRad(angleObj.AngleDeg) : 0;
         float distanceFromCentre = ProgressAtTime(time, currentTime, originTime);
 
         var localPosition = new Vector2(MathF.Cos(radians) * distanceFromCentre, -MathF.Sin(radians) * distanceFromCentre);

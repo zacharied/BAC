@@ -3,9 +3,11 @@ using osu.Game.Rulesets.BigAssCircle.Core;
 
 namespace osu.Game.Rulesets.BigAssCircle.Objects;
 
-internal partial class ShoulderNote : Note, IHasCardinalDirection
+internal partial class ShoulderNote : Note, IHasCardinalDirection, IHasAngle
 {
-    public HorizontalDirection Side = HorizontalDirection.Left;
+    public required HorizontalDirection Side { get; init; }
+
+    public int AngleDeg => Side.ToAngleDeg();
 
     public override BigAssCircleButtonInput ButtonInput => Side switch
     {

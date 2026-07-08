@@ -1,12 +1,15 @@
 namespace osu.Game.Rulesets.BigAssCircle.Objects;
 
-public class SliderChild : BacHitObject
+public class SliderChild : BacHitObject, IHasAngle
 {
-    public required SliderBody Parent;
+    public SliderBody Parent;
     public BacPathControlPoint ControlPoint;
 
-    public SliderChild(BacPathControlPoint controlPoint)
+    public SliderChild(SliderBody parent, BacPathControlPoint controlPoint)
     {
+        Parent = parent;
         ControlPoint = controlPoint;
     }
+
+    public int AngleDeg => Parent.AngleDeg + ControlPoint.RotationOffset;
 }

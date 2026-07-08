@@ -1,20 +1,22 @@
 using System.Linq;
 using System.Threading;
 using osu.Game.Rulesets.BigAssCircle.Core;
+using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Types;
 
 namespace osu.Game.Rulesets.BigAssCircle.Objects;
 
-public class SliderBody : BacHitObject, IHasDuration
+public class SliderBody : BacHitObject, IHasDuration, IHasAngle
 {
-    public required HorizontalDirection Side;
-    public BacPath Path;
-
     /// <summary>
     /// The initial direction of the path, in degrees. Each child control point's
     /// <see cref="BacPathControlPoint.RotationOffset"/> is applied relative to this.
     /// </summary>
-    public int DirectionDeg { get; init; }
+    public required int AngleDeg { get; init; }
+
+    public required HorizontalDirection Side;
+
+    public required BacPath Path { get; init; }
 
     /// <summary>
     /// The duration of the path, derived from the furthest-in-time control point.
@@ -27,10 +29,6 @@ public class SliderBody : BacHitObject, IHasDuration
     }
 
     public double EndTime => StartTime + Duration;
-
-    public SliderBody()
-    {
-    }
 
     /// <summary>
     /// The absolute time of the node immediately preceding <paramref name="child"/> along the path —
@@ -47,16 +45,15 @@ public class SliderBody : BacHitObject, IHasDuration
 
     protected override void CreateNestedHitObjects(CancellationToken cancellationToken)
     {
-        AddNested(new SliderHead()
+        AddNested(new SliderHead(this)
         {
             StartTime = StartTime,
         });
 
         foreach (var controlPoint in Path.ControlPoints)
         {
-            var childHitObject = new SliderChild(controlPoint)
+            var childHitObject = new SliderChild(this, controlPoint)
             {
-                Parent = this,
                 StartTime = StartTime + controlPoint.TimeOffset,
             };
             AddNested(childHitObject);

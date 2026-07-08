@@ -3,9 +3,11 @@ using osu.Game.Rulesets.BigAssCircle.Core;
 
 namespace osu.Game.Rulesets.BigAssCircle.Objects;
 
-internal class CardinalNote : Note, IHasCardinalDirection
+internal class CardinalNote : Note, IHasCardinalDirection, IHasAngle
 {
-    public CardinalDirection Direction { get; init; } = CardinalDirection.East;
+    public required int AngleDeg { get; init; }
+
+    public CardinalDirection Direction => CardinalDirectionExtensions.FromAngle(AngleDeg);
 
     public override BigAssCircleButtonInput ButtonInput => Direction switch
     {

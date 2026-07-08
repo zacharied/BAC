@@ -16,6 +16,7 @@ public class BacTestBeatmapGenerator
             [
                 new SliderBody()
                 {
+                    AngleDeg = 0,
                     StartTime = 2000,
                     Side = HorizontalDirection.Right,
                     Path = new BacPath()
@@ -38,6 +39,7 @@ public class BacTestBeatmapGenerator
                 },
                 new SliderBody()
                 {
+                    AngleDeg = 0,
                     StartTime = 5000,
                     Side = HorizontalDirection.Left,
                     Path = new BacPath()
@@ -61,17 +63,17 @@ public class BacTestBeatmapGenerator
                 new CardinalNote()
                 {
                     StartTime = 2000,
-                    Direction = CardinalDirection.North,
+                    AngleDeg = 90,
                 },
                 new CardinalNote()
                 {
                     StartTime = 2150,
-                    Direction = CardinalDirection.North,
+                    AngleDeg = 90,
                 },
                 new CardinalNote()
                 {
                     StartTime = 4000,
-                    Direction = CardinalDirection.West
+                    AngleDeg = 90,
                 },
                 new ShoulderNote()
                 {

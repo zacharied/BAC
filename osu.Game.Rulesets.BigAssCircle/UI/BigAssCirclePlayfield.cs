@@ -3,7 +3,6 @@
 
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
-using osu.Framework.Input;
 using osu.Game.Rulesets.BigAssCircle.Core;
 using osu.Game.Rulesets.BigAssCircle.Input;
 using osu.Game.Rulesets.Objects;

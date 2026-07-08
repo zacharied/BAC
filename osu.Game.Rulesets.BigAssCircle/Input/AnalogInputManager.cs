@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Numerics;
-using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Input;
 using osu.Framework.Input.Events;
@@ -10,7 +9,6 @@ using osu.Game.Rulesets.BigAssCircle.Core;
 
 namespace osu.Game.Rulesets.BigAssCircle.Input;
 
-[Cached]
 internal partial class AnalogInputManager : Drawable
 {
     public readonly ImmutableDictionary<HorizontalDirection, SliderCatcher> SliderCatchers = new Dictionary<HorizontalDirection, SliderCatcher> {
