@@ -5,7 +5,7 @@ namespace osu.Game.Rulesets.BigAssCircle.Objects;
 
 internal partial class ShoulderNote : Note, IHasCardinalDirection, IHasAngle
 {
-    public required HorizontalDirection Side { get; init; }
+    public required HorizontalDirection Side { get; set; }
 
     public int AngleDeg => Side.ToAngleDeg();
 

@@ -233,6 +233,61 @@ depends on whether the **leading edge is being caught right now** — `isLeading
 
 The animation is purely visual and independent of the per-child judgement.
 
+## The editor (Edit/)
+
+A mania-style compose screen (spec: `PLAN-editor.md`, plan: `PLAN-editor-impl.md`), entered via
+`BigAssCircleRuleset.CreateHitObjectComposer()` → `BigAssCircleHitObjectComposer :
+ScrollingHitObjectComposer<BacHitObject>`. It is **entirely separate from the gameplay presentation**: a
+second drawable ruleset (`DrawableBigAssCircleEditorRuleset : DrawableScrollingRuleset`, vertical
+`ScrollingDirection.Down`, constant algorithm, scroll speed synced to timeline zoom) hosts a rectangular
+`BacEditorPlayfield : ScrollingPlayfield` where **y = time** (stock scrolling container) and **x = the
+circle unrolled**.
+
+- **All angle↔x maths lives in `EditorAngleMapping`** — never do it ad hoc. Left grid edge = West (180°),
+  angle increases CCW rightward (South 25%, East 50%, North 75%). Each side has a 30° **ghost band**
+  (`GHOST_DEGREES`), so the full width spans `TOTAL_DEGREES` = 420 and every x is a fraction of that.
+  `SnapX` snaps in the *unwrapped band domain* (a cursor in a band stays put visually) and returns the
+  wrap-normalised angle; `GhostTwinX` says where an object's band clone sits; `MinimalDiff` picks the
+  shortest signed rotation (slider node offsets must not spin the long way).
+- **Snapping:** blueprints call `composer.FindSnappedAngleTimeAndPosition` — base
+  `FindSnappedPositionAndTime` for beat-snapped time, then angle snapping (toolbox-configurable
+  `AngleSnap`, default 45°) on top, returning a `BacSnapResult` carrying `AngleDeg`. **Gotcha:** the base
+  scrolling snap *recentres x to the playfield middle* (`ScreenSpacePositionAtTime` uses `DrawWidth / 2`)
+  — take the angle from the **original** cursor position, only y/time from the base result.
+- **Models are mutable for editing:** `IHasMutableAngle : IHasAngle` (settable `AngleDeg`) on
+  CardinalNote/HoldNote/SliderBody/both slams; `ShoulderNote.Side` settable instead (its angle stays
+  derived). Mutate, then `EditorBeatmap.Update(h)` — that re-runs ApplyDefaults and regenerates nested
+  objects (slider children, hold heads).
+- **Editor drawables** (`Edit/Drawables/`, base `EditorDrawableBacHitObject<T>`): x from `AngleDeg` every
+  frame (`ComputeXFraction`, overridden by shoulder notes to sit in their **lane strips at the quadrant
+  boundaries** — Left at 225°, Right at 45°); y/height from the scrolling container (`IHasDuration` ⇒
+  height = duration length; bottom origin, grows upward). They auto-judge as time passes (hitsound
+  feedback) but `UpdateHitStateTransforms` is a no-op so nothing fades while editing. Visuals come from
+  `CreateVisual()` so the base can instantiate a **second copy as the ghost twin** when
+  `GhostTwinX(angle)` is non-null. Nested objects get `EditorDrawableNestedStub` (invisible; still needs
+  the nested-container plumbing per the gotcha below). The slider draws as `SliderPolylineVisual` — nodes
+  at raw `RotationOffset` (unwrapped, may extend into the bands), vertices pushed to a `SmoothPath` only
+  when changed, positioned with `path.Position = -path.PositionInBoundingBox(Vector2.Zero)`.
+- **Blueprints** (`Edit/Blueprints/`): placement base `BacPlacementBlueprint<T>` writes snapped
+  angle+time while `Waiting`; `InstantPlacementBlueprint` (cardinal/slams) places on click; hold = mania's
+  click-drag-release duration pattern; shoulder picks the `Side` whose strip is angularly nearer;
+  slider = **multi-click** (click body, click each node — must advance in time — right-click commits,
+  ≥1 node required, `T` inserts a node at the cursor on a *selected* slider). Selection base
+  `BacSelectionBlueprint<T>` re-positions per frame and makes ghost twins **interactable** by drawing a
+  twin outline and hit-testing via *translating the query point back onto the main copy* in
+  `ReceivePositionalInputAt`. `ReplacesExistingObject` is scoped to same-angle (same-side for shoulders) —
+  the framework default would delete *any* object sharing the beat.
+- **Selection movement** (`BacSelectionHandler.HandleMovement`) converts the x screen-delta to whole
+  degrees and rotates every selected `IHasMutableAngle` (mod 360 — no clamping; the axis wraps). Edge slam
+  direction is a ternary context-menu item ("Anticlockwise").
+- **Tests:** `TestSceneBacEditor : EditorTestScene` drives the real editor headlessly with
+  `InputManager` clicks — the fastest way to verify editor behaviour (`dotnet test --filter
+  TestSceneBacEditor`). Note placement auto-seeks the clock to the placed object (objects land on the
+  judgement line at the bottom), so tests wait for the seek and target `screenPositionOf(hitObject)`.
+- **Not yet done:** saving (the legacy `.osu` encoder can't roundtrip BAC objects — needs a legacy-field
+  mapping), slider `Side` selection in the editor (always Left), hold/slider twin drag handles (main copy
+  only), z-ordering sliders above notes.
+
 ## Gotchas / patterns (each cost a debugging cycle)
 
 - **Nested hit objects need a drawable AND a home in the tree.** `CreateNestedHitObject` must return
@@ -258,6 +313,10 @@ osu.Game.Rulesets.BigAssCircle/
   Input/              AnalogInputManager (+ SliderCatcher)
   UI/                 BigAssCirclePlayfield → Ring → Lane, scrolling container, Arc (the ring),
                       BacOrderedHitPolicy (note-lock), PlayfieldKeybeam, StickIndicator, DrawableRuleset
+  Edit/               the editor: composer, editor drawable ruleset + playfield, EditorAngleMapping,
+                      composition tools, BacBlueprintContainer/BacSelectionHandler
+  Edit/Drawables/     editor timeline representations (EditorDrawableBacHitObject<T> + per-type visuals)
+  Edit/Blueprints/    placement/selection blueprints (+ Components/ drag pieces, outline pieces)
   Beatmaps/           BigAssCircleBeatmapConverter (osu → this ruleset), BacTestBeatmapGenerator
-osu.Game.Rulesets.BigAssCircle.Tests/   TestSceneOsuPlayer, VisualTestRunner
+osu.Game.Rulesets.BigAssCircle.Tests/   TestSceneOsuPlayer, TestSceneBacEditor, VisualTestRunner
 ```

@@ -6,13 +6,13 @@ using osu.Game.Rulesets.Objects.Types;
 
 namespace osu.Game.Rulesets.BigAssCircle.Objects;
 
-public class SliderBody : BacHitObject, IHasDuration, IHasAngle
+public class SliderBody : BacHitObject, IHasDuration, IHasMutableAngle
 {
     /// <summary>
     /// The initial direction of the path, in degrees. Each child control point's
     /// <see cref="BacPathControlPoint.RotationOffset"/> is applied relative to this.
     /// </summary>
-    public required int AngleDeg { get; init; }
+    public required int AngleDeg { get; set; }
 
     public required HorizontalDirection Side;
 

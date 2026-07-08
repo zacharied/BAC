@@ -3,9 +3,9 @@ using osu.Game.Rulesets.BigAssCircle.Core;
 
 namespace osu.Game.Rulesets.BigAssCircle.Objects;
 
-internal class CardinalNote : Note, IHasCardinalDirection, IHasAngle
+internal class CardinalNote : Note, IHasCardinalDirection, IHasMutableAngle
 {
-    public required int AngleDeg { get; init; }
+    public required int AngleDeg { get; set; }
 
     public CardinalDirection Direction => CardinalDirectionExtensions.FromAngle(AngleDeg);
 

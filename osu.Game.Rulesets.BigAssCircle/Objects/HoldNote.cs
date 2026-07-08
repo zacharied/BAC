@@ -14,9 +14,9 @@ namespace osu.Game.Rulesets.BigAssCircle.Objects;
 /// while its derived <see cref="Direction"/> only selects the button / note-lock lane, so it rides the same
 /// cardinal lane a <see cref="CardinalNote"/> at the same angle would.
 /// </summary>
-internal class HoldNote : Note, IHasCardinalDirection, IHasAngle, IHasDuration
+internal class HoldNote : Note, IHasCardinalDirection, IHasMutableAngle, IHasDuration
 {
-    public required int AngleDeg { get; init; }
+    public required int AngleDeg { get; set; }
 
     public double Duration { get; set; }
 

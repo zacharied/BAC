@@ -9,8 +9,10 @@ using osu.Framework.Input.Bindings;
 using osu.Game.Beatmaps;
 using osu.Game.Graphics;
 using osu.Game.Rulesets.Difficulty;
+using osu.Game.Rulesets.Edit;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.BigAssCircle.Beatmaps;
+using osu.Game.Rulesets.BigAssCircle.Edit;
 using osu.Game.Rulesets.BigAssCircle.Mods;
 using osu.Game.Rulesets.BigAssCircle.UI;
 using osu.Game.Rulesets.UI;
@@ -24,6 +26,8 @@ namespace osu.Game.Rulesets.BigAssCircle
         public override DrawableRuleset CreateDrawableRulesetWith(IBeatmap beatmap, IReadOnlyList<Mod> mods = null) => new DrawableBigAssCircleRuleset(this, beatmap, mods);
 
         public override IBeatmapConverter CreateBeatmapConverter(IBeatmap beatmap) => new BigAssCircleBeatmapConverter(beatmap, this);
+
+        public override HitObjectComposer CreateHitObjectComposer() => new BigAssCircleHitObjectComposer(this);
 
         public override DifficultyCalculator CreateDifficultyCalculator(IWorkingBeatmap beatmap) => new BigAssCircleDifficultyCalculator(RulesetInfo, beatmap);
 
