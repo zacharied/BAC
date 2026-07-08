@@ -14,10 +14,6 @@ namespace osu.Game.Rulesets.BigAssCircle.Objects.Drawables
 {
     internal partial class DrawableCardinalNote : DrawableNote<CardinalNote>
     {
-        /// <summary>
-        /// Whether this object can be hit, given a time value. If non-null, hits are ignored while the
-        /// function returns false. Assigned by the owning <see cref="UI.Lane"/>'s hit policy (note lock).
-        /// </summary>
         private readonly Sprite sprite;
 
         public DrawableCardinalNote(CardinalNote hitObject)
@@ -46,12 +42,6 @@ namespace osu.Game.Rulesets.BigAssCircle.Objects.Drawables
             // Apply note spawn effect
             sprite.ScaleTo(0).ScaleTo(1, 125, Easing.In);
         }
-
-        /// <summary>
-        /// Forces this object to be missed, disregarding <see cref="CheckForResult"/>. Used by the lane's
-        /// hit policy to note-lock earlier objects when a later one is hit.
-        /// </summary>
-        public void MissForcefully() => ApplyMinResult();
 
         protected override void UpdateHitStateTransforms(ArmedState state)
         {

@@ -1,57 +1,30 @@
-using System;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Input;
 using osu.Framework.Input.Events;
 using osu.Game.Rulesets.BigAssCircle.Core;
+using osu.Game.Rulesets.BigAssCircle.Input;
 using osuTK;
 
 namespace osu.Game.Rulesets.BigAssCircle.UI;
 
 public partial class StickIndicator : Container
 {
-    /// <summary>
-    /// The rotation (in radians, same polar convention as the rest of the playfield:
-    /// <c>x = cos(θ)·r, y = -sin(θ)·r</c>) that the stick is currently pointing towards.
-    /// Only meaningful while <see cref="Activated"/> is true.
-    /// </summary>
-    public float Angle { get; private set; }
-
-    /// <summary>
-    /// Whether the stick is currently deflected beyond the deadzone.
-    /// </summary>
-    public bool Activated { get; private set; }
-
-    /// <summary>
-    /// Magnitude of stick deflection below which the indicator is hidden.
-    /// </summary>
-    public float Deadzone = 0.2f;
-
-    /// <summary>
-    /// Angular width of the drawn arc, in radians.
-    /// </summary>
-    public float ArcWidth = MathF.PI / 2.5f;
+    [Resolved]
+    private AnalogInputManager analogInputManager { get; set; } = null!;
 
     /// <summary>
     /// Radius of the arc relative to the playfield ring (1 = on the ring, &gt;1 = outside it).
     /// </summary>
     public float RadiusScale = 1.06f;
 
-    private readonly JoystickAxisSource xAxis, yAxis;
-    private float xAxisLast, yAxisLast;
-    private Vector2 joystickPosition => new Vector2(xAxisLast, yAxisLast);
-
-    public HorizontalDirection Side { get; set; }
+    public required HorizontalDirection Side { get; init; }
 
     private Arc arc = null!;
 
-    public StickIndicator(JoystickAxisSource xAxis, JoystickAxisSource yAxis, HorizontalDirection side)
+    public StickIndicator()
     {
-        this.xAxis = xAxis;
-        this.yAxis = yAxis;
-        this.Side = side;
-
         RelativeSizeAxes = Axes.Both;
     }
 
@@ -69,42 +42,18 @@ public partial class StickIndicator : Container
         });
     }
 
-    protected override bool OnJoystickAxisMove(JoystickAxisMoveEvent e)
-    {
-        if (e.Axis.Source == xAxis)
-        {
-            xAxisLast = e.Axis.Value;
-            return true;
-        }
-
-        if (e.Axis.Source == yAxis)
-        {
-            yAxisLast = e.Axis.Value;
-            return true;
-        }
-
-        return false;
-    }
-
     protected override void Update()
     {
         base.Update();
 
-        var position = joystickPosition;
+        var sliderCatcher = analogInputManager.SliderCatchers[Side];
 
-        Activated = position.Length > Deadzone;
-
-        if (Activated)
+        if (sliderCatcher.Activated)
         {
-            // Same polar convention as PositionAtTime: x = cos(θ)·r, y = -sin(θ)·r.
-            // The joystick reports +x right and +y down, matching the screen, so inverting that convention
-            // (θ = atan2(-y, x)) places the arc on the ring in the direction the stick is pushed.
-            Angle = MathF.Atan2(-position.Y, position.X);
-
-            arc.StartRadians.Value = Angle - ArcWidth / 2;
-            arc.EndRadians.Value = Angle + ArcWidth / 2;
+            arc.StartRadians.Value = sliderCatcher.Angle - sliderCatcher.Size / 2;
+            arc.EndRadians.Value = sliderCatcher.Angle + sliderCatcher.Size / 2;
         }
 
-        arc.Alpha = Activated ? 1 : 0;
+        arc.Alpha = sliderCatcher.Activated ? 1 : 0;
     }
 }

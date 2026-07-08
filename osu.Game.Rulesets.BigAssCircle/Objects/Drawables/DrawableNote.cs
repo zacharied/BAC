@@ -6,15 +6,21 @@ using osu.Game.Rulesets.Scoring;
 
 namespace osu.Game.Rulesets.BigAssCircle.Objects.Drawables;
 
-internal abstract partial class DrawableNote<T> : DrawableBacHitObject<T>, IKeyBindingHandler<BigAssCircleAction>
+internal abstract partial class DrawableNote<T> : DrawableBacHitObject<T>, IKeyBindingHandler<BigAssCircleAction>, IHittableNote
     where T : Note
 {
-    public Func<DrawableHitObject, double, bool>? CheckHittable;
+    public Func<DrawableHitObject, double, bool>? CheckHittable { get; set; }
 
     protected DrawableNote(T hitObject)
         : base(hitObject)
     {
     }
+
+    /// <summary>
+    /// Forces this object to be missed, disregarding <see cref="CheckForResult"/>. Used by the lane's
+    /// hit policy to note-lock earlier objects when a later one is hit.
+    /// </summary>
+    public void MissForcefully() => ApplyMinResult();
 
     protected override void CheckForResult(bool userTriggered, double timeOffset)
     {

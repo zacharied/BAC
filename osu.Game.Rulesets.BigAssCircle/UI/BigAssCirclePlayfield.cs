@@ -5,6 +5,7 @@ using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Input;
 using osu.Game.Rulesets.BigAssCircle.Core;
+using osu.Game.Rulesets.BigAssCircle.Input;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.UI;
@@ -17,12 +18,15 @@ namespace osu.Game.Rulesets.BigAssCircle.UI
     /// the global overlays that are not tied to a single lane.
     /// </summary>
     [Cached]
-    public partial class BigAssCirclePlayfield : Playfield
+    internal partial class BigAssCirclePlayfield : Playfield
     {
         private readonly Ring ring = new Ring();
 
-        private readonly Drawable stickIndicatorL = new StickIndicator(JoystickAxisSource.GamePadLeftStickX, JoystickAxisSource.GamePadLeftStickY, HorizontalDirection.Left);
-        private readonly Drawable stickIndicatorR = new StickIndicator(JoystickAxisSource.GamePadRightStickX, JoystickAxisSource.GamePadRightStickY, HorizontalDirection.Right);
+        private readonly Drawable stickIndicatorL = new StickIndicator() { Side = HorizontalDirection.Left };
+        private readonly Drawable stickIndicatorR = new StickIndicator() { Side = HorizontalDirection.Right };
+
+        [Cached]
+        private AnalogInputManager analogInputManager { get; set; } = new AnalogInputManager();
 
         public BigAssCirclePlayfield()
         {
@@ -34,10 +38,10 @@ namespace osu.Game.Rulesets.BigAssCircle.UI
         private void load()
         {
             AddRangeInternal([
+                analogInputManager,
                 ring,
                 stickIndicatorL,
                 stickIndicatorR,
-                new JoystickDebugOverlay() // TEMPORARY: remove once gamepad mappings are confirmed.
             ]);
         }
 

@@ -30,7 +30,7 @@ internal partial class AnalogInputManager : Drawable
 
     public class SliderCatcher
     {
-        public const float DEADZONE = 0.6f;
+        public const float DEADZONE = 0.4f;
 
         public int SizeDeg => 72;
         public bool Activated { get; private set; } = false;
@@ -42,6 +42,7 @@ internal partial class AnalogInputManager : Drawable
         private float xAxisLast, yAxisLast;
 
         private Vector2 joystickPosition => new Vector2(xAxisLast, yAxisLast);
+        public float Size => SizeDeg * MathF.PI / 180f;
 
         public SliderCatcher(JoystickAxisSource xAxis, JoystickAxisSource yAxis, HorizontalDirection side)
         {
@@ -76,13 +77,13 @@ internal partial class AnalogInputManager : Drawable
             if (!Activated)
                 return false;
 
-            int paddleAngleDeg = (int)(Angle * 180 / MathF.PI);
+            float target = angleDeg * MathF.PI / 180f;
 
-            if ((paddleAngleDeg + SizeDeg / 2 > angleDeg || paddleAngleDeg - 360 + SizeDeg / 2 > angleDeg)
-                && (paddleAngleDeg - SizeDeg / 2 < angleDeg || paddleAngleDeg - 360 - SizeDeg / 2 < angleDeg))
-                return true;
+            // shortest signed angular distance between the catcher and the target, wrapped to (-π, π]
+            float delta = target - Angle;
+            delta -= MathF.Tau * MathF.Floor((delta + MathF.PI) / MathF.Tau);
 
-            return false;
+            return MathF.Abs(delta) < Size / 2f;
         }
     }
 }

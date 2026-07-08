@@ -12,36 +12,43 @@ using osu.Game.Rulesets.UI;
 namespace osu.Game.Rulesets.BigAssCircle.UI;
 
 /// <summary>
-/// One <see cref="CardinalDirection"/>'s "column": the analog of mania's <c>Column</c>. Every button that
-/// travels in this lane's direction lives in the lane's own <see cref="HitObjectContainer"/>, and the lane
-/// runs its own <see cref="BacOrderedHitPolicy"/> over just those objects — so note lock is independent per
-/// lane. The lane also owns the <see cref="PlayfieldKeybeam"/> that lights up for its direction.
+/// A "column": the analog of mania's <c>Column</c>. Every note routed here lives in the lane's own
+/// <see cref="HitObjectContainer"/>, and the lane runs its own <see cref="BacOrderedHitPolicy"/> over just
+/// those objects — so note lock is independent per lane. Cardinal notes and shoulder notes are grouped into
+/// separate lanes even where they share an angle (West/East), so their note-lock never interferes.
+///
+/// A lane may optionally own a <see cref="PlayfieldKeybeam"/> that lights up for its direction (the four
+/// cardinal lanes do; the shoulder lanes, driven by the L/R buttons rather than a cardinal, do not).
 ///
 /// All lanes are full-size and share the same polar centre, so they physically overlap; the "lane" is a
-/// logical grouping by direction, not a spatial region like a mania column.
+/// logical grouping, not a spatial region like a mania column.
 /// </summary>
 [Cached]
 public partial class Lane : Playfield
 {
-    public readonly CardinalDirection Direction;
+    private readonly PlayfieldKeybeam? keybeam;
 
     private readonly BacOrderedHitPolicy hitPolicy;
 
     protected override HitObjectContainer CreateHitObjectContainer() => new BigAssCircleScrollingHitObjectContainer();
 
-    public Lane(CardinalDirection direction)
+    public Lane(PlayfieldKeybeam? keybeam = null)
     {
-        Direction = direction;
+        this.keybeam = keybeam;
         RelativeSizeAxes = Axes.Both;
 
-        // Scoped to this lane's container, so it only ever considers this direction's objects.
+        // Scoped to this lane's container, so it only ever considers this lane's objects.
         hitPolicy = new BacOrderedHitPolicy(HitObjectContainer);
     }
 
     [BackgroundDependencyLoader]
     private void load()
     {
-        var keybeam = new PlayfieldKeybeam(Direction);
+        if (keybeam == null)
+        {
+            AddInternal(HitObjectContainer);
+            return;
+        }
 
         // The keybeam draws behind the hit objects (a proxy renders it at the back), but the real drawable
         // sits in front of them in the input queue. That way it observes each press (returning false) before
@@ -64,8 +71,8 @@ public partial class Lane : Playfield
     {
         base.OnNewDrawableHitObject(drawableHitObject);
 
-        if (drawableHitObject is DrawableCardinalNote button)
-            button.CheckHittable = hitPolicy.IsHittable;
+        if (drawableHitObject is IHittableNote note)
+            note.CheckHittable = hitPolicy.IsHittable;
     }
 
     private void onNewResult(DrawableHitObject judgedObject, JudgementResult result)

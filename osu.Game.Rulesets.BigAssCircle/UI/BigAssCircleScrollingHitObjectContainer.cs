@@ -84,9 +84,9 @@ internal partial class BigAssCircleScrollingHitObjectContainer : HitObjectContai
 
     public float DistanceFromCentreAtTime(double time) => DistanceFromCentreAtTime(time, Time.Current);
 
-    public Vector2 PositionAtTime(DrawableCardinalNote obj, double time, double currentTime, double? originTime = null)
+    public Vector2 PositionAtTime(DrawableHitObject obj, double time, double currentTime, double? originTime = null)
     {
-        float radians = ((CardinalNote)obj.HitObject).Direction.ToRadians();
+        float radians = ((IHasCardinalDirection)obj.HitObject).Direction.ToRadians();
         float distanceFromCentre = ProgressAtTime(time, currentTime, originTime);
 
         var localPosition = new Vector2(MathF.Cos(radians) * distanceFromCentre, -MathF.Sin(radians) * distanceFromCentre);
@@ -157,9 +157,9 @@ internal partial class BigAssCircleScrollingHitObjectContainer : HitObjectContai
         // We are not using AliveObjects directly to avoid selection/sorting overhead since we don't care about the order at which positions will be updated.
         foreach (var entry in AliveEntries)
         {
-            // Paths are not point-positioned like buttons; they compute their own
-            // per-node geometry each frame (see DrawableBacPath.UpdatePath).
-            if (entry.Value is not DrawableCardinalNote obj)
+            // Paths are not point-positioned like notes; they compute their own
+            // per-node geometry each frame (see DrawableSliderBody.updatePath).
+            if (entry.Value is not { } obj || obj.HitObject is not IHasCardinalDirection)
                 continue;
 
             updatePosition(obj, Time.Current);
@@ -205,7 +205,7 @@ internal partial class BigAssCircleScrollingHitObjectContainer : HitObjectContai
             entry.LifetimeEnd = entry.HitObject.GetEndTime() + timeRange.Value;
     }
 
-    private void updateLayoutRecursive(DrawableCardinalNote hitObject, double? parentHitObjectStartTime = null)
+    private void updateLayoutRecursive(DrawableHitObject hitObject, double? parentHitObjectStartTime = null)
     {
         parentHitObjectStartTime ??= hitObject.HitObject.StartTime;
 
@@ -216,17 +216,17 @@ internal partial class BigAssCircleScrollingHitObjectContainer : HitObjectContai
 
         foreach (var obj in hitObject.NestedHitObjects)
         {
-            updateLayoutRecursive((DrawableCardinalNote)obj, parentHitObjectStartTime);
+            updateLayoutRecursive(obj, parentHitObjectStartTime);
 
             // Nested hitobjects don't need to scroll, but they do need accurate positions and start lifetime
-            updatePosition((DrawableCardinalNote)obj, hitObject.HitObject.StartTime, parentHitObjectStartTime);
+            updatePosition(obj, hitObject.HitObject.StartTime, parentHitObjectStartTime);
 
             if (obj.Entry != null)
                 setComputedLifetime(obj.Entry);
         }
     }
 
-    private void updatePosition(DrawableCardinalNote hitObject, double currentTime, double? parentHitObjectStartTime = null)
+    private void updatePosition(DrawableHitObject hitObject, double currentTime, double? parentHitObjectStartTime = null)
     {
         var position = PositionAtTime(hitObject, hitObject.HitObject.StartTime, currentTime, parentHitObjectStartTime);
         hitObject.Position = position;

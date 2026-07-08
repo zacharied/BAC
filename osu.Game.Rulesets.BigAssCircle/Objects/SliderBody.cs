@@ -32,6 +32,19 @@ public class SliderBody : BacHitObject, IHasDuration
     {
     }
 
+    /// <summary>
+    /// The absolute time of the node immediately preceding <paramref name="child"/> along the path —
+    /// the start of the segment that ends at the child. For the first control point this is the head
+    /// node at <see cref="HitObject.StartTime"/>.
+    /// </summary>
+    public double GetSegmentStartTime(SliderChild child)
+    {
+        // Node 0 is the head at StartTime; control point i is node i+1 at StartTime + TimeOffset.
+        // IndexOf is by reference (each control point instance is unique), matching DrawableSliderBody.
+        int index = Path.ControlPoints.IndexOf(child.ControlPoint);
+        return index <= 0 ? StartTime : StartTime + Path.ControlPoints[index - 1].TimeOffset;
+    }
+
     protected override void CreateNestedHitObjects(CancellationToken cancellationToken)
     {
         AddNested(new SliderHead()

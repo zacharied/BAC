@@ -72,6 +72,16 @@ public class BacTestBeatmapGenerator
                 {
                     StartTime = 4000,
                     Direction = CardinalDirection.West
+                },
+                new ShoulderNote()
+                {
+                    StartTime = 3000,
+                    Side = HorizontalDirection.Right,
+                },
+                new ShoulderNote()
+                {
+                    StartTime = 3500,
+                    Side = HorizontalDirection.Left,
                 }
             ]
         };
