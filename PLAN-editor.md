@@ -6,7 +6,7 @@ The editor is to be presented as a vertically scrolling timeline. The y-axis rep
 
 ## Presentation
 
-The grid should be presented to the user with configurable x-axis snapping settings that default to 45 degree increments. Defer to how Mania mode does it for time (vertical axis) snapping.
+The grid should be presented to the user with configurable x-axis snapping settings that default to 45 degree increments. Defer to how Mania mode does it for time (vertical axis) snapping. The grid should have additional demarcations every 45 degrees, such that the circle represented by the grid is divided into four cardinal-direction oriented quadrants.
 
 On both horizontal sides of the grid should be a "fake" view of the adjacent 30 degrees that would be beyond that x-coordinate. This should be slightly darkened, and should show clones of the objects in the actual vertical slice being cloned. These clones should be interactable. Please ask about this, it will be hard to implement!
 
@@ -22,4 +22,4 @@ The editor must support the following hit objects:
 
 The Toolbox component in Mania has buttons entering Select mode, as well as Taps and Holds. We need that, but our objects intead (as well as Select). 
 
-We will have to make some decisions for how the user can interact with slider objects, since they can have an arbitrary number of children added to them.
+We will have to make some decisions for how the user can interact with slider objects, since they can have an arbitrary number of children added to them. I guess we can start out with a global hotkey unused elsewhere that will add a new node at the cursor position. Keep in mind that control points should ALWAYS come after the previous control point/node.
