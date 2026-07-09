@@ -19,11 +19,11 @@ namespace osu.Game.Rulesets.BigAssCircle.Edit;
 /// </summary>
 public partial class BacEditorPlayfield : ScrollingPlayfield
 {
-    /// <summary>Grid degrees of the Left-shoulder lane strip (the West–South quadrant boundary, 225° absolute).</summary>
-    public const int LEFT_SHOULDER_GRID_DEG = 45;
+    /// <summary>Absolute angle of the Left-shoulder lane strip (the West–South quadrant boundary).</summary>
+    public const int LEFT_SHOULDER_ANGLE_DEG = 225;
 
-    /// <summary>Grid degrees of the Right-shoulder lane strip (the East–North quadrant boundary, 45° absolute).</summary>
-    public const int RIGHT_SHOULDER_GRID_DEG = 225;
+    /// <summary>Absolute angle of the Right-shoulder lane strip (the East–North quadrant boundary).</summary>
+    public const int RIGHT_SHOULDER_ANGLE_DEG = 45;
 
     /// <summary>Visual width of a shoulder lane strip, in degrees.</summary>
     public const float SHOULDER_STRIP_DEGREES = 16;
@@ -31,12 +31,12 @@ public partial class BacEditorPlayfield : ScrollingPlayfield
     /// <summary>Target container for the beat snap grid's scrolling line containers.</summary>
     public Container UnderlayElements { get; } = new Container { RelativeSizeAxes = Axes.Both };
 
+    /// <summary>The absolute angle of a side's shoulder lane strip.</summary>
+    public static int ShoulderAngle(HorizontalDirection side) =>
+        side == HorizontalDirection.Left ? LEFT_SHOULDER_ANGLE_DEG : RIGHT_SHOULDER_ANGLE_DEG;
+
     /// <summary>The x-fraction (of the full editor width) of a side's shoulder lane strip.</summary>
-    public static float ShoulderXFraction(HorizontalDirection side)
-    {
-        int gridDeg = side == HorizontalDirection.Left ? LEFT_SHOULDER_GRID_DEG : RIGHT_SHOULDER_GRID_DEG;
-        return (EditorAngleMapping.GHOST_DEGREES + gridDeg) / (float)EditorAngleMapping.TOTAL_DEGREES;
-    }
+    public static float ShoulderXFraction(HorizontalDirection side) => EditorAngleMapping.ToX(ShoulderAngle(side));
 
     [BackgroundDependencyLoader]
     private void load()
@@ -53,8 +53,8 @@ public partial class BacEditorPlayfield : ScrollingPlayfield
             },
             UnderlayElements,
             new AngleGrid { RelativeSizeAxes = Axes.Both },
-            shoulderStrip(LEFT_SHOULDER_GRID_DEG),
-            shoulderStrip(RIGHT_SHOULDER_GRID_DEG),
+            shoulderStrip(LEFT_SHOULDER_ANGLE_DEG),
+            shoulderStrip(RIGHT_SHOULDER_ANGLE_DEG),
             HitObjectContainer,
             // ghost band dimming, above the hit objects so their clones read as "faded copies".
             new Box
@@ -76,12 +76,12 @@ public partial class BacEditorPlayfield : ScrollingPlayfield
         };
     }
 
-    private static Drawable shoulderStrip(int gridDeg) => new Box
+    private static Drawable shoulderStrip(int angleDeg) => new Box
     {
         RelativeSizeAxes = Axes.Both,
         RelativePositionAxes = Axes.X,
         Width = SHOULDER_STRIP_DEGREES / EditorAngleMapping.TOTAL_DEGREES,
-        X = (EditorAngleMapping.GHOST_DEGREES + gridDeg) / (float)EditorAngleMapping.TOTAL_DEGREES,
+        X = EditorAngleMapping.ToX(angleDeg),
         Origin = Anchor.TopCentre,
         Colour = Color4.MediumPurple,
         Alpha = 0.12f,
@@ -117,14 +117,16 @@ public partial class BacEditorPlayfield : ScrollingPlayfield
             var lines = new List<Drawable>();
             int snap = composer?.AngleSnap.Value ?? 45;
 
-            // walk the full band domain in grid degrees.
+            // walk the full band domain in grid degrees; classify by the ABSOLUTE angle so the thick
+            // lines and letter labels land on the cardinals (NESW), not on whatever the origin makes a
+            // grid multiple of 90.
             for (int gridDeg = -EditorAngleMapping.GHOST_DEGREES; gridDeg <= 360 + EditorAngleMapping.GHOST_DEGREES; gridDeg += 1)
             {
-                bool cardinal = gridDeg % 90 == 0;
-                bool major = gridDeg % 45 == 0;
-                // snap increments are multiples of the absolute angle; grid degrees are offset by the
-                // origin, so convert before testing.
-                bool snapLine = EditorAngleMapping.NormalizeDeg(gridDeg + EditorAngleMapping.ANGLE_ORIGIN) % snap == 0;
+                int absolute = EditorAngleMapping.NormalizeDeg(gridDeg + EditorAngleMapping.ANGLE_ORIGIN);
+
+                bool cardinal = absolute % 90 == 0;
+                bool major = absolute % 45 == 0;
+                bool snapLine = absolute % snap == 0;
 
                 if (!cardinal && !major && !snapLine)
                     continue;
@@ -150,7 +152,7 @@ public partial class BacEditorPlayfield : ScrollingPlayfield
                         X = x,
                         Y = 4,
                         Origin = Anchor.TopCentre,
-                        Text = cardinalLabel(gridDeg),
+                        Text = CardinalDirectionExtensions.FromAngle(absolute).ToString()[..1],
                         Colour = colours.Yellow,
                         Font = OsuFont.Default.With(size: 16, weight: FontWeight.Bold),
                     });
@@ -158,12 +160,6 @@ public partial class BacEditorPlayfield : ScrollingPlayfield
             }
 
             InternalChildren = lines.ToArray();
-        }
-
-        private static string cardinalLabel(int gridDeg)
-        {
-            int absolute = EditorAngleMapping.NormalizeDeg(gridDeg + EditorAngleMapping.ANGLE_ORIGIN);
-            return CardinalDirectionExtensions.FromAngle(absolute).ToString()[..1];
         }
     }
 }

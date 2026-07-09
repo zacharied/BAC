@@ -36,10 +36,11 @@ namespace osu.Game.Rulesets.BigAssCircle.Tests
 
         private void storeExistingObjects() => AddStep("store existing objects", () => objectsBeforePlacement = EditorBeatmap.HitObjects.ToHashSet());
 
-        private Vector2 positionAtGridDegrees(float gridDeg, float yFrac = 0.5f)
+        /// <summary>Screen position of an absolute angle on the grid (origin-independent via the mapping).</summary>
+        private Vector2 positionAtAngle(float angleDeg, float yFrac = 0.5f)
         {
             var quad = playfield.ScreenSpaceDrawQuad;
-            float xFrac = (EditorAngleMapping.GHOST_DEGREES + gridDeg) / EditorAngleMapping.TOTAL_DEGREES;
+            float xFrac = EditorAngleMapping.ToX(angleDeg);
             return new Vector2(quad.TopLeft.X + quad.Width * xFrac, quad.TopLeft.Y + quad.Height * yFrac);
         }
 
@@ -58,8 +59,8 @@ namespace osu.Game.Rulesets.BigAssCircle.Tests
         {
             storeExistingObjects();
             AddStep("select note tool", () => InputManager.Key(Key.Number2));
-            // slightly off the South line (grid 90 = absolute 270), should snap onto it.
-            AddStep("move near south line", () => InputManager.MoveMouseTo(positionAtGridDegrees(84)));
+            // slightly off the South line (270°), should snap onto it.
+            AddStep("move near south line", () => InputManager.MoveMouseTo(positionAtAngle(264)));
             AddStep("click", () => InputManager.Click(MouseButton.Left));
             AddAssert("note placed at 270", () => placedNote?.AngleDeg, () => Is.EqualTo(270));
         }
@@ -69,7 +70,7 @@ namespace osu.Game.Rulesets.BigAssCircle.Tests
         {
             storeExistingObjects();
             AddStep("select note tool", () => InputManager.Key(Key.Number2));
-            AddStep("move to south line", () => InputManager.MoveMouseTo(positionAtGridDegrees(90)));
+            AddStep("move to south line", () => InputManager.MoveMouseTo(positionAtAngle(270)));
             AddStep("click to place", () => InputManager.Click(MouseButton.Left));
             AddAssert("note placed", () => placedNote != null);
 
@@ -97,10 +98,10 @@ namespace osu.Game.Rulesets.BigAssCircle.Tests
         {
             storeExistingObjects();
             AddStep("select hold tool", () => InputManager.Key(Key.Number3));
-            AddStep("move to playfield", () => InputManager.MoveMouseTo(positionAtGridDegrees(90, 0.6f)));
+            AddStep("move to playfield", () => InputManager.MoveMouseTo(positionAtAngle(270, 0.6f)));
             AddStep("press", () => InputManager.PressButton(MouseButton.Left));
             // downward scrolling: dragging upward extends toward later times.
-            AddStep("drag upward", () => InputManager.MoveMouseTo(positionAtGridDegrees(90, 0.3f)));
+            AddStep("drag upward", () => InputManager.MoveMouseTo(positionAtAngle(270, 0.3f)));
             AddStep("release", () => InputManager.ReleaseButton(MouseButton.Left));
             AddAssert("hold placed with duration", () => placedObject<HoldNote>()?.Duration > 0);
         }
@@ -110,12 +111,13 @@ namespace osu.Game.Rulesets.BigAssCircle.Tests
         {
             storeExistingObjects();
             AddStep("select shoulder tool", () => InputManager.Key(Key.Number4));
-            AddStep("move near left strip", () => InputManager.MoveMouseTo(positionAtGridDegrees(60)));
+            // Left strip is the West–South boundary (225°); Right strip the East–North boundary (45°).
+            AddStep("move near left strip", () => InputManager.MoveMouseTo(positionAtAngle(225)));
             AddStep("click", () => InputManager.Click(MouseButton.Left));
             AddAssert("left shoulder placed", () => placedObject<ShoulderNote>()?.Side == HorizontalDirection.Left);
 
             storeExistingObjects();
-            AddStep("move near right strip", () => InputManager.MoveMouseTo(positionAtGridDegrees(250, 0.4f)));
+            AddStep("move near right strip", () => InputManager.MoveMouseTo(positionAtAngle(45, 0.4f)));
             AddStep("click", () => InputManager.Click(MouseButton.Left));
             AddAssert("right shoulder placed", () => placedObject<ShoulderNote>()?.Side == HorizontalDirection.Right);
         }
@@ -125,13 +127,13 @@ namespace osu.Game.Rulesets.BigAssCircle.Tests
         {
             storeExistingObjects();
             AddStep("select center slam tool", () => InputManager.Key(Key.Number5));
-            AddStep("move to playfield", () => InputManager.MoveMouseTo(positionAtGridDegrees(90)));
+            AddStep("move to playfield", () => InputManager.MoveMouseTo(positionAtAngle(270)));
             AddStep("click", () => InputManager.Click(MouseButton.Left));
             AddAssert("center slam placed at 270", () => placedObject<BacSlamCentered>()?.AngleDeg, () => Is.EqualTo(270));
 
             storeExistingObjects();
             AddStep("select edge slam tool", () => InputManager.Key(Key.Number6));
-            AddStep("move to playfield", () => InputManager.MoveMouseTo(positionAtGridDegrees(135, 0.4f)));
+            AddStep("move to playfield", () => InputManager.MoveMouseTo(positionAtAngle(315, 0.4f)));
             AddStep("click", () => InputManager.Click(MouseButton.Left));
             AddAssert("edge slam placed at 315", () => placedObject<BacSlamEdge>()?.AngleDeg, () => Is.EqualTo(315));
         }
@@ -141,11 +143,11 @@ namespace osu.Game.Rulesets.BigAssCircle.Tests
         {
             storeExistingObjects();
             AddStep("select slider tool", () => InputManager.Key(Key.Number7));
-            AddStep("move to body start", () => InputManager.MoveMouseTo(positionAtGridDegrees(90, 0.7f)));
+            AddStep("move to body start", () => InputManager.MoveMouseTo(positionAtAngle(270, 0.7f)));
             AddStep("click body", () => InputManager.Click(MouseButton.Left));
-            AddStep("move to first node", () => InputManager.MoveMouseTo(positionAtGridDegrees(135, 0.5f)));
+            AddStep("move to first node", () => InputManager.MoveMouseTo(positionAtAngle(315, 0.5f)));
             AddStep("click node 1", () => InputManager.Click(MouseButton.Left));
-            AddStep("move to second node", () => InputManager.MoveMouseTo(positionAtGridDegrees(90, 0.3f)));
+            AddStep("move to second node", () => InputManager.MoveMouseTo(positionAtAngle(270, 0.3f)));
             AddStep("click node 2", () => InputManager.Click(MouseButton.Left));
             AddStep("right click to commit", () => InputManager.Click(MouseButton.Right));
 
@@ -169,9 +171,9 @@ namespace osu.Game.Rulesets.BigAssCircle.Tests
         {
             storeExistingObjects();
             AddStep("select slider tool", () => InputManager.Key(Key.Number7));
-            AddStep("move to body start", () => InputManager.MoveMouseTo(positionAtGridDegrees(90, 0.7f)));
+            AddStep("move to body start", () => InputManager.MoveMouseTo(positionAtAngle(270, 0.7f)));
             AddStep("click body", () => InputManager.Click(MouseButton.Left));
-            AddStep("move to node", () => InputManager.MoveMouseTo(positionAtGridDegrees(90, 0.3f)));
+            AddStep("move to node", () => InputManager.MoveMouseTo(positionAtAngle(270, 0.3f)));
             AddStep("click node", () => InputManager.Click(MouseButton.Left));
             AddStep("right click to commit", () => InputManager.Click(MouseButton.Right));
             AddAssert("slider placed", () => placedObject<SliderBody>() != null);
@@ -188,7 +190,7 @@ namespace osu.Game.Rulesets.BigAssCircle.Tests
                 var slider = placedObject<SliderBody>()!;
                 var container = playfield.HitObjectContainer;
                 var screen = container.ScreenSpacePositionAtTime(slider.StartTime + slider.Duration / 2);
-                screen.X = positionAtGridDegrees(135).X;
+                screen.X = positionAtAngle(315).X;
                 InputManager.MoveMouseTo(screen);
             });
             AddStep("press T", () => InputManager.Key(Key.T));
@@ -201,12 +203,35 @@ namespace osu.Game.Rulesets.BigAssCircle.Tests
         }
 
         [Test]
+        public void TestSliderCrossingWrapSeamRendersWrapCopies()
+        {
+            storeExistingObjects();
+            AddStep("select slider tool", () => InputManager.Key(Key.Number7));
+            // body one snap step left of the seam (135°); the node one step past it on the other side.
+            // MinimalDiff must take the short way across the seam (+90), pushing the path off the grid's
+            // right edge — which the polyline must re-enter from the left as a second wrap copy.
+            AddStep("move to body start", () => InputManager.MoveMouseTo(positionAtAngle(90, 0.7f)));
+            AddStep("click body", () => InputManager.Click(MouseButton.Left));
+            AddStep("move node across seam", () => InputManager.MoveMouseTo(positionAtAngle(180, 0.4f)));
+            AddStep("click node", () => InputManager.Click(MouseButton.Left));
+            AddStep("right click to commit", () => InputManager.Click(MouseButton.Right));
+
+            AddAssert("slider placed", () => placedObject<SliderBody>() != null);
+            AddAssert("offset takes the short way (+90)", () => placedObject<SliderBody>()!.Path.ControlPoints.Single().RotationOffset, () => Is.EqualTo(90));
+
+            AddUntilStep("polyline renders two wrap copies", () =>
+                Editor.ChildrenOfType<Edit.Drawables.EditorDrawableSliderBody>()
+                      .SingleOrDefault(d => d.HitObject == placedObject<SliderBody>())
+                      ?.ChildrenOfType<osu.Framework.Graphics.Lines.SmoothPath>().Count() == 2);
+        }
+
+        [Test]
         public void TestSelectViaGhostTwin()
         {
             storeExistingObjects();
             AddStep("select note tool", () => InputManager.Key(Key.Number2));
-            // grid 15 (absolute 195°) is within 30° of the left edge, so a twin shows in the right band at grid 375.
-            AddStep("move near left edge", () => InputManager.MoveMouseTo(positionAtGridDegrees(15)));
+            // 150° is within 30° of the left edge (135°), so once snapped it shows a twin in the right band.
+            AddStep("move near left edge", () => InputManager.MoveMouseTo(positionAtAngle(150)));
             AddStep("click to place", () => InputManager.Click(MouseButton.Left));
             AddAssert("note placed", () => placedNote != null);
 
@@ -228,24 +253,25 @@ namespace osu.Game.Rulesets.BigAssCircle.Tests
         {
             storeExistingObjects();
             AddStep("select note tool", () => InputManager.Key(Key.Number2));
-            AddStep("move into left ghost band", () =>
+            // 15° into the RIGHT band, where the unwrapped angle runs past 360° — the snap lands on the
+            // unwrapped 495°, which wraps (mod 360) to 135°, the seam angle.
+            Vector2 rightBandPosition()
             {
                 var quad = playfield.ScreenSpaceDrawQuad;
-                // 15° into the left band (grid degrees −15 → absolute 165°, snapping to 180°).
-                float xFrac = (EditorAngleMapping.GHOST_DEGREES - 15f) / EditorAngleMapping.TOTAL_DEGREES;
-                InputManager.MoveMouseTo(new Vector2(quad.TopLeft.X + quad.Width * xFrac, quad.Centre.Y));
-            });
-            AddAssert("composer snaps band position to 180", () =>
+                float xFrac = (EditorAngleMapping.GHOST_DEGREES + 360f + 15f) / EditorAngleMapping.TOTAL_DEGREES;
+                return new Vector2(quad.TopLeft.X + quad.Width * xFrac, quad.Centre.Y);
+            }
+
+            AddStep("move into right ghost band", () => InputManager.MoveMouseTo(rightBandPosition()));
+            AddAssert("composer wraps band position to 135", () =>
             {
                 var composer = Editor.ChildrenOfType<BigAssCircleHitObjectComposer>().Single();
-                var quad = playfield.ScreenSpaceDrawQuad;
-                float xFrac = (EditorAngleMapping.GHOST_DEGREES - 15f) / EditorAngleMapping.TOTAL_DEGREES;
-                var result = composer.FindSnappedAngleTimeAndPosition(new Vector2(quad.TopLeft.X + quad.Width * xFrac, quad.Centre.Y));
-                return result is BacSnapResult bac && bac.AngleDeg == 180;
+                var result = composer.FindSnappedAngleTimeAndPosition(rightBandPosition());
+                return result is BacSnapResult bac && bac.AngleDeg == 135;
             });
             AddStep("click", () => InputManager.Click(MouseButton.Left));
             AddAssert("note placed", () => placedNote != null);
-            AddAssert("angle wrapped to 180", () => placedNote!.AngleDeg, () => NUnit.Framework.Is.EqualTo(180));
+            AddAssert("angle wrapped to 135", () => placedNote!.AngleDeg, () => NUnit.Framework.Is.EqualTo(135));
         }
     }
 }

@@ -25,6 +25,9 @@ internal partial class EditorDrawableSliderBody : EditorDrawableBacHitObject<Sli
 
     protected override Drawable CreateVisual() => new SliderPolylineVisual(HitObject);
 
+    // the polyline draws its own wrap copies (VisibleWrapCopies) — a base ghost twin would duplicate them.
+    protected override float? TwinXFraction() => null;
+
     protected override DrawableHitObject CreateNestedHitObject(HitObject hitObject) => new EditorDrawableNestedStub((BacHitObject)hitObject);
 
     protected override void AddNestedHitObject(DrawableHitObject hitObject) => nestedContainer.Add(hitObject);

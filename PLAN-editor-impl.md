@@ -174,3 +174,40 @@ objects by hand; `BacTestBeatmapGenerator` can seed content later if useful.
 - Editor drawables must not expire on "hit" (autoplay runs under the composer) — no-op
   `UpdateHitStateTransforms`, mirroring mania's `EditorColumn` fix.
 - Keep all angle↔x math in the single mapping helper; ad-hoc conversions are how wrap bugs will creep in.
+
+## Slider crossover (wrap-around rendering) — post-v1 feature
+
+A slider's polyline lives in *unwrapped* angle space (`RotationOffset` is unbounded), so a sweep that
+crosses the grid's wrap seam currently runs off the edge and vanishes. It must instead re-enter from the
+opposite edge and continue — including arbitrarily many full turns (multi-turn sliders are legal for
+mapping; no clamping, no warnings needed if rendering handles them).
+
+Decisions (agreed):
+1. **Multi-turn supported outright** via the copies loop below — no special-casing, no warning.
+2. **One drag handle per node**, placed at the node's *wrapped* (on-grid) position; copies are visual only.
+3. **Body strip / selection quad unchanged** — selection stays anchored at the head.
+
+Approach — generalise the ghost-twin idea from "±1 copy of a point" to "k copies of an extent":
+
+- **`EditorAngleMapping.VisibleWrapCopies(minGridDeg, maxGridDeg)`** (pure, unit-tested): the set of
+  integers k for which the range shifted by −k·360 intersects the visible window
+  `[−GHOST_DEGREES, 360 + GHOST_DEGREES]`. A fully on-grid slider yields {0}; a seam-crosser {0, 1} (or
+  {−1, 0}); each extra full turn adds one more k.
+- **`SliderPolylineVisual`**: compute the vertex list once (as today), take its unwrapped grid-degree
+  extent (body grid degrees + min/max node offset), and draw one path + node-marker copy per k, offset by
+  −k·360·pxPerDeg. The rebuild early-out must also compare the copy set — dragging the *body* toward the
+  seam changes the copies while leaving the (body-relative) vertices identical.
+- **`EditorDrawableSliderBody.TwinXFraction() => null`** — the polyline now draws its own wrap copies;
+  the base ghost twin would duplicate the k=±1 copy.
+- **`SliderPlacementBlueprint`**: preview path gets the same copy rendering. Also fix the rubber-band
+  vertex: it currently uses the raw cursor x, but the committed node uses `MinimalDiff` — so previewing
+  across the seam draws a long wrong-way line. Place the rubber vertex at the *unwrapped* continuation
+  (`lastNodeX + MinimalDiff(lastAbsolute, cursorAngle)·pxPerDeg`) and let the copies make it visible at
+  the cursor.
+- **`SliderSelectionBlueprint`**: node handle x = wrapped node angle via `ToX`, positioned relative to
+  the body's x — no longer the raw unwrapped offset. `dragNode` already works across the seam
+  (`MinimalDiff` from the current absolute).
+
+Verification: NUnit tests for `VisibleWrapCopies`; editor scene test placing a seam-crossing slider
+(assert `RotationOffset` takes the short way and the polyline renders 2 copies — internals are visible
+to the test project); manual multi-turn slider in the test browser.

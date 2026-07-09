@@ -1,24 +1,30 @@
 using System;
+using System.Collections.Generic;
 
 namespace osu.Game.Rulesets.BigAssCircle.Edit;
 
 /// <summary>
 /// The single authority for converting between hit-object angles and the editor timeline's x-axis.
 ///
-/// The editor unrolls the circle onto a horizontal axis: the left edge of the main grid is West (180°)
-/// and angle increases (counter-clockwise in the game's polar convention) to the right — so
-/// South = 25%, East = 50%, North = 75% of the way across the grid, wrapping back to West at the right
-/// edge. On each side sits a <see cref="GHOST_DEGREES"/>-wide "ghost" band previewing the wrap-around,
-/// so the full drawable width spans <see cref="TOTAL_DEGREES"/>.
+/// The editor unrolls the circle onto a horizontal axis: the left edge of the main grid sits on the
+/// North/West quadrant boundary (135°) and angle increases (counter-clockwise in the game's polar
+/// convention) to the right — so the four cardinal lanes read West, South, East, North left-to-right,
+/// each centred a comfortable margin inside the grid rather than split across the wrap seam. The seam
+/// itself lands on a diagonal quadrant boundary, so no cardinal lane straddles it. On each side sits a
+/// <see cref="GHOST_DEGREES"/>-wide "ghost" band previewing the wrap-around, so the full drawable width
+/// spans <see cref="TOTAL_DEGREES"/>.
 ///
 /// All x values here are fractions of the FULL editor playfield width (ghost bands included).
 /// "Grid degrees" are degrees counter-clockwise from the left edge of the main grid, i.e.
-/// <c>angle − 180</c> normalised to <c>[0, 360)</c>.
+/// <c>angle − ANGLE_ORIGIN</c> normalised to <c>[0, 360)</c>.
 /// </summary>
 public static class EditorAngleMapping
 {
-    /// <summary>The absolute angle at the left edge of the main grid (West).</summary>
-    public const int ANGLE_ORIGIN = 180;
+    /// <summary>
+    /// The absolute angle at the left edge of the main grid — the North/West quadrant boundary, chosen
+    /// so the wrap seam falls on a diagonal and every cardinal lane stays whole.
+    /// </summary>
+    public const int ANGLE_ORIGIN = 135;
 
     /// <summary>The angular width of each ghost wrap-around band.</summary>
     public const int GHOST_DEGREES = 30;
@@ -74,6 +80,22 @@ public static class EditorAngleMapping
     {
         int d = NormalizeDeg(toDeg - fromDeg);
         return d > 180 ? d - 360 : d;
+    }
+
+    /// <summary>
+    /// The 360°-multiples <c>k</c> for which a copy of an unwrapped grid-degree range, shifted left by
+    /// <c>k·360</c>, intersects the visible window (the main grid plus both ghost bands). <c>k</c> = 0 is
+    /// the unshifted copy; a range crossing the wrap seam yields two values, and each additional full
+    /// turn of sweep adds one more. This is the ghost-twin idea generalised from a point to an extent,
+    /// which is what lets slider paths wrap around the seam (and wind multiple turns).
+    /// </summary>
+    public static IEnumerable<int> VisibleWrapCopies(float minGridDeg, float maxGridDeg)
+    {
+        int first = (int)MathF.Ceiling((minGridDeg - 360 - GHOST_DEGREES) / 360);
+        int last = (int)MathF.Floor((maxGridDeg + GHOST_DEGREES) / 360);
+
+        for (int k = first; k <= last; k++)
+            yield return k;
     }
 
     /// <summary>

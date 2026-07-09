@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Lines;
 using osu.Framework.Input.Events;
 using osu.Game.Graphics;
@@ -23,7 +25,7 @@ namespace osu.Game.Rulesets.BigAssCircle.Edit.Blueprints;
 /// </summary>
 internal partial class SliderPlacementBlueprint : BacPlacementBlueprint<SliderBody>
 {
-    private readonly SmoothPath previewPath;
+    private readonly Container previewPaths;
     private readonly EditSquarePiece cursorPiece;
 
     private int cursorAngleDeg;
@@ -41,7 +43,7 @@ internal partial class SliderPlacementBlueprint : BacPlacementBlueprint<SliderBo
     {
         InternalChildren = new Drawable[]
         {
-            previewPath = new SmoothPath { PathRadius = 3 },
+            previewPaths = new Container { RelativeSizeAxes = Axes.Both },
             cursorPiece = new EditSquarePiece
             {
                 Size = new Vector2(EditorDrawableCardinalNote.NOTE_SIZE),
@@ -53,7 +55,7 @@ internal partial class SliderPlacementBlueprint : BacPlacementBlueprint<SliderBo
     [BackgroundDependencyLoader]
     private void load(OsuColour colours)
     {
-        previewPath.Colour = colours.Yellow;
+        previewPaths.Colour = colours.Yellow;
     }
 
     public override SnapResult UpdateTimeAndPosition(Vector2 screenSpacePosition, double fallbackTime)
@@ -125,6 +127,7 @@ internal partial class SliderPlacementBlueprint : BacPlacementBlueprint<SliderBo
         float pxPerDeg = DrawWidth / EditorAngleMapping.TOTAL_DEGREES;
 
         var vertices = new List<Vector2>();
+        int minOffset = 0, maxOffset = 0;
 
         if (PlacementActive == PlacementState.Active)
         {
@@ -132,19 +135,51 @@ internal partial class SliderPlacementBlueprint : BacPlacementBlueprint<SliderBo
 
             vertices.Add(new Vector2(headX, ToLocalSpace(container.ScreenSpacePositionAtTime(HitObject.StartTime)).Y));
 
+            int lastRotation = 0;
+
             foreach (var cp in HitObject.Path.ControlPoints)
             {
                 vertices.Add(new Vector2(
                     headX + cp.RotationOffset * pxPerDeg,
                     ToLocalSpace(container.ScreenSpacePositionAtTime(HitObject.StartTime + cp.TimeOffset)).Y));
+
+                minOffset = Math.Min(minOffset, cp.RotationOffset);
+                maxOffset = Math.Max(maxOffset, cp.RotationOffset);
+                lastRotation = cp.RotationOffset;
             }
 
-            // rubber-band to the cursor when it would form a valid next node.
+            // rubber-band to the cursor when it would form a valid next node — at the UNWRAPPED
+            // continuation the commit would produce (MinimalDiff from the last node), not the raw cursor
+            // x, so previewing across the wrap seam goes the short way; a wrap copy lands it on the cursor.
             if (cursorTime - HitObject.StartTime > (HitObject.Path.ControlPoints.Count > 0 ? HitObject.Path.ControlPoints[^1].TimeOffset : 0))
-                vertices.Add(cursorPiece.Position);
+            {
+                int lastAbsolute = EditorAngleMapping.NormalizeDeg(HitObject.AngleDeg + lastRotation);
+                int rubberOffset = lastRotation + EditorAngleMapping.MinimalDiff(lastAbsolute, cursorAngleDeg);
+
+                vertices.Add(new Vector2(headX + rubberOffset * pxPerDeg, cursorPiece.Position.Y));
+
+                minOffset = Math.Min(minOffset, rubberOffset);
+                maxOffset = Math.Max(maxOffset, rubberOffset);
+            }
         }
 
-        previewPath.Vertices = vertices;
-        previewPath.Position = -previewPath.PositionInBoundingBox(Vector2.Zero);
+        previewPaths.Clear();
+
+        if (vertices.Count < 2)
+            return;
+
+        float headGridDeg = EditorAngleMapping.ToGridDegrees(HitObject.AngleDeg);
+
+        foreach (int k in EditorAngleMapping.VisibleWrapCopies(headGridDeg + minOffset, headGridDeg + maxOffset))
+        {
+            var path = new SmoothPath
+            {
+                PathRadius = 3,
+                Vertices = vertices,
+                X = -k * 360 * pxPerDeg,
+            };
+            path.Position += -path.PositionInBoundingBox(Vector2.Zero);
+            previewPaths.Add(path);
+        }
     }
 }

@@ -52,9 +52,8 @@ internal partial class ShoulderNotePlacementBlueprint : HitObjectPlacementBluepr
             if (PlacementActive == PlacementState.Waiting)
             {
                 // pick the side whose lane strip is angularly closer to the cursor.
-                float cursorGridDeg = playfield.ToLocalSpace(screenSpacePosition).X / playfield.DrawWidth * EditorAngleMapping.TOTAL_DEGREES - EditorAngleMapping.GHOST_DEGREES;
-                cursorGridDeg = EditorAngleMapping.NormalizeDeg(cursorGridDeg);
-                HitObject.Side = wrapDistance(cursorGridDeg, BacEditorPlayfield.LEFT_SHOULDER_GRID_DEG) <= wrapDistance(cursorGridDeg, BacEditorPlayfield.RIGHT_SHOULDER_GRID_DEG)
+                float cursorAngle = EditorAngleMapping.ToAngle(playfield.ToLocalSpace(screenSpacePosition).X / playfield.DrawWidth);
+                HitObject.Side = wrapDistance(cursorAngle, BacEditorPlayfield.LEFT_SHOULDER_ANGLE_DEG) <= wrapDistance(cursorAngle, BacEditorPlayfield.RIGHT_SHOULDER_ANGLE_DEG)
                     ? HorizontalDirection.Left
                     : HorizontalDirection.Right;
             }

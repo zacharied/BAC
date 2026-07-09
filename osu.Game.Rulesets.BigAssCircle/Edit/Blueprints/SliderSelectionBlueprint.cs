@@ -91,12 +91,18 @@ internal partial class SliderSelectionBlueprint : BacSelectionBlueprint<SliderBo
             return;
 
         float pxPerDeg = HitObjectContainer.DrawWidth / EditorAngleMapping.TOTAL_DEGREES;
+        float bodyGridDeg = EditorAngleMapping.ToGridDegrees(HitObject.AngleDeg);
 
         for (int i = 0; i < controlPoints.Count; i++)
         {
             var cp = controlPoints[i];
+
+            // one handle per node, at the node's WRAPPED (on-grid) position — the polyline may draw the
+            // node again in a ghost band via a wrap copy, but only this handle is interactable.
+            float nodeGridDeg = EditorAngleMapping.ToGridDegrees(HitObject.AngleDeg + cp.RotationOffset);
+
             nodeHandles[i].Position = new Vector2(
-                DrawWidth / 2 + cp.RotationOffset * pxPerDeg,
+                DrawWidth / 2 + (nodeGridDeg - bodyGridDeg) * pxPerDeg,
                 DrawHeight * (float)(1 - cp.TimeOffset / duration));
         }
     }

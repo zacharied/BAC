@@ -243,8 +243,10 @@ second drawable ruleset (`DrawableBigAssCircleEditorRuleset : DrawableScrollingR
 `BacEditorPlayfield : ScrollingPlayfield` where **y = time** (stock scrolling container) and **x = the
 circle unrolled**.
 
-- **All angle↔x maths lives in `EditorAngleMapping`** — never do it ad hoc. Left grid edge = West (180°),
-  angle increases CCW rightward (South 25%, East 50%, North 75%). Each side has a 30° **ghost band**
+- **All angle↔x maths lives in `EditorAngleMapping`** — never do it ad hoc. Left grid edge =
+  `ANGLE_ORIGIN` = the North/West quadrant boundary (135°), chosen so the wrap seam lands on a diagonal
+  and no cardinal lane is split across it; angle increases CCW rightward, so the cardinal lanes read
+  West, South, East, North left-to-right (each centred a margin inside the grid). Each side has a 30° **ghost band**
   (`GHOST_DEGREES`), so the full width spans `TOTAL_DEGREES` = 420 and every x is a fraction of that.
   `SnapX` snaps in the *unwrapped band domain* (a cursor in a band stays put visually) and returns the
   wrap-normalised angle; `GhostTwinX` says where an object's band clone sits; `MinimalDiff` picks the
@@ -266,8 +268,15 @@ circle unrolled**.
   `CreateVisual()` so the base can instantiate a **second copy as the ghost twin** when
   `GhostTwinX(angle)` is non-null. Nested objects get `EditorDrawableNestedStub` (invisible; still needs
   the nested-container plumbing per the gotcha below). The slider draws as `SliderPolylineVisual` — nodes
-  at raw `RotationOffset` (unwrapped, may extend into the bands), vertices pushed to a `SmoothPath` only
-  when changed, positioned with `path.Position = -path.PositionInBoundingBox(Vector2.Zero)`.
+  at raw `RotationOffset` (unwrapped, so a path can sweep past the grid edges — multi-turn is legal), and
+  the polyline is drawn once per **wrap copy** (`EditorAngleMapping.VisibleWrapCopies`, the ghost-twin
+  idea generalised from a point to an extent, offset −k·360° each) so a seam-crossing path re-enters from
+  the opposite edge; the slider drawable's own `TwinXFraction()` is null (copies replace the base twin).
+  The rebuild early-out compares vertices AND the copy set (dragging the body toward the seam changes
+  copies while body-relative vertices stay identical). Node drag handles sit at each node's *wrapped*
+  on-grid position (one handle per node; copies are visual only), and the placement rubber-band previews
+  at the unwrapped `MinimalDiff` continuation (what the commit would produce), not the raw cursor x.
+  Paths are positioned with `path.Position = -path.PositionInBoundingBox(Vector2.Zero)`.
 - **Blueprints** (`Edit/Blueprints/`): placement base `BacPlacementBlueprint<T>` writes snapped
   angle+time while `Waiting`; `InstantPlacementBlueprint` (cardinal/slams) places on click; hold = mania's
   click-drag-release duration pattern; shoulder picks the `Side` whose strip is angularly nearer;
