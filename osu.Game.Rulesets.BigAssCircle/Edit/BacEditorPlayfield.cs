@@ -55,7 +55,9 @@ public partial class BacEditorPlayfield : ScrollingPlayfield
             new AngleGrid { RelativeSizeAxes = Axes.Both },
             shoulderStrip(LEFT_SHOULDER_ANGLE_DEG),
             shoulderStrip(RIGHT_SHOULDER_ANGLE_DEG),
-            HitObjectContainer,
+            // masked to the timeline bounds so slider wrap copies (and anything else) don't paint outside
+            // it; the ghost bands lie within the bounds, so their clones still show.
+            new Container { RelativeSizeAxes = Axes.Both, Masking = true, Child = HitObjectContainer },
             // ghost band dimming, above the hit objects so their clones read as "faded copies".
             new Box
             {

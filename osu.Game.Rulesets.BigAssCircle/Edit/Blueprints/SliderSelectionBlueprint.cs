@@ -1,10 +1,13 @@
 using System;
+using System.Collections.Generic;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Lines;
 using osu.Framework.Graphics.Primitives;
 using osu.Framework.Input;
 using osu.Framework.Input.Events;
+using osu.Game.Graphics;
 using osu.Game.Rulesets.BigAssCircle.Edit.Blueprints.Components;
 using osu.Game.Rulesets.BigAssCircle.Edit.Drawables;
 using osu.Game.Rulesets.BigAssCircle.Objects;
@@ -15,12 +18,22 @@ using osuTK.Input;
 namespace osu.Game.Rulesets.BigAssCircle.Edit.Blueprints;
 
 /// <summary>
-/// Slider selection: an outline strip over the body's duration with a draggable circle handle per
-/// control-point node (dragging retimes/re-angles that node, clamped between its neighbours). With the
-/// slider selected, pressing <c>T</c> inserts a new node at the cursor, kept time-ordered.
+/// Slider selection: a yellow outline tracing the actual polyline (head → each node, with wrap copies
+/// across the seam) plus a draggable circle handle per control-point node (dragging retimes/re-angles
+/// that node, clamped between its neighbours). With the slider selected, pressing <c>T</c> inserts a new
+/// node at the cursor, kept time-ordered.
+///
+/// Hit-testing is **path-precise**: <see cref="ReceivePositionalInputAt"/> only reports the outline paths
+/// and node handles, so clicking a line segment or node selects the slider while clicks in the empty
+/// space of its bounding box fall through to whatever is underneath. <see cref="SelectionQuad"/> only
+/// sizes the framework's rectangular handle box and never drives selection, so bounding the whole
+/// polyline there is safe.
 /// </summary>
 internal partial class SliderSelectionBlueprint : BacSelectionBlueprint<SliderBody>
 {
+    /// <summary>Thickness of the outline; doubles as the click tolerance for path-precise selection.</summary>
+    private const float outline_radius = 8;
+
     [Resolved]
     private IEditorChangeHandler? changeHandler { get; set; }
 
@@ -30,8 +43,14 @@ internal partial class SliderSelectionBlueprint : BacSelectionBlueprint<SliderBo
     [Resolved]
     private BigAssCircleHitObjectComposer? composer { get; set; }
 
+    private Container outlineContainer = null!;
     private Container<NodeDragPiece> nodeHandles = null!;
     private EditSquarePiece head = null!;
+
+    // Outline paths are buffered drawables — pooled/reused (never new'd per frame), one per visible wrap copy.
+    private readonly List<SmoothPath> outlinePool = new List<SmoothPath>();
+    private readonly List<Vector2> outlineVertices = new List<Vector2>();
+    private SmoothPath? primaryOutline;
 
     private InputManager inputManager = null!;
 
@@ -43,10 +62,12 @@ internal partial class SliderSelectionBlueprint : BacSelectionBlueprint<SliderBo
     }
 
     [BackgroundDependencyLoader]
-    private void load()
+    private void load(OsuColour colours)
     {
         InternalChildren = new Drawable[]
         {
+            // behind the head marker and node handles so the dots/handles stay clickable on top.
+            outlineContainer = new Container { RelativeSizeAxes = Axes.Both, Colour = colours.Yellow },
             head = new EditSquarePiece
             {
                 RelativeSizeAxes = Axes.X,
@@ -57,6 +78,9 @@ internal partial class SliderSelectionBlueprint : BacSelectionBlueprint<SliderBo
             nodeHandles = new Container<NodeDragPiece> { RelativeSizeAxes = Axes.Both },
         };
     }
+
+    // wrap copies trace the seam themselves; suppress the base rectangular ghost twin.
+    protected override float? TwinXFraction() => null;
 
     protected override void LoadComplete()
     {
@@ -88,7 +112,10 @@ internal partial class SliderSelectionBlueprint : BacSelectionBlueprint<SliderBo
 
         double duration = HitObject.Duration;
         if (duration <= 0)
+        {
+            clearOutline();
             return;
+        }
 
         float pxPerDeg = HitObjectContainer.DrawWidth / EditorAngleMapping.TOTAL_DEGREES;
         float bodyGridDeg = EditorAngleMapping.ToGridDegrees(HitObject.AngleDeg);
@@ -105,6 +132,91 @@ internal partial class SliderSelectionBlueprint : BacSelectionBlueprint<SliderBo
                 DrawWidth / 2 + (nodeGridDeg - bodyGridDeg) * pxPerDeg,
                 DrawHeight * (float)(1 - cp.TimeOffset / duration));
         }
+
+        updateOutline(pxPerDeg, bodyGridDeg, duration);
+    }
+
+    /// <summary>
+    /// Rebuilds the outline polyline to match the drawn slider exactly: raw (unwrapped)
+    /// <see cref="BacPathControlPoint.RotationOffset"/> per node, drawn once per visible wrap copy. Kept
+    /// current every frame (even while deselected) because the paths back path-precise hit-testing.
+    /// </summary>
+    private void updateOutline(float pxPerDeg, float bodyGridDeg, double duration)
+    {
+        outlineVertices.Clear();
+        outlineVertices.Add(new Vector2(DrawWidth / 2, DrawHeight));
+
+        int minOffset = 0, maxOffset = 0;
+
+        foreach (var cp in HitObject.Path.ControlPoints)
+        {
+            outlineVertices.Add(new Vector2(
+                DrawWidth / 2 + cp.RotationOffset * pxPerDeg,
+                DrawHeight * (float)(1 - cp.TimeOffset / duration)));
+
+            minOffset = Math.Min(minOffset, cp.RotationOffset);
+            maxOffset = Math.Max(maxOffset, cp.RotationOffset);
+        }
+
+        primaryOutline = null;
+        int used = 0;
+
+        if (outlineVertices.Count >= 2)
+        {
+            foreach (int k in EditorAngleMapping.VisibleWrapCopies(bodyGridDeg + minOffset, bodyGridDeg + maxOffset))
+            {
+                var path = poolOutline(used++);
+                path.Vertices = outlineVertices;
+                path.Position = -path.PositionInBoundingBox(Vector2.Zero) + new Vector2(-k * 360 * pxPerDeg, 0);
+
+                if (k == 0)
+                    primaryOutline = path;
+            }
+        }
+
+        for (int i = used; i < outlinePool.Count; i++)
+            outlinePool[i].ClearVertices();
+    }
+
+    private void clearOutline()
+    {
+        primaryOutline = null;
+        foreach (var path in outlinePool)
+            path.ClearVertices();
+    }
+
+    private SmoothPath poolOutline(int index)
+    {
+        while (outlinePool.Count <= index)
+        {
+            var path = new SmoothPath { PathRadius = outline_radius };
+            outlinePool.Add(path);
+            outlineContainer.Add(path);
+        }
+
+        return outlinePool[index];
+    }
+
+    public override bool ReceivePositionalInputAt(Vector2 screenSpacePos)
+    {
+        // path-precise: only the traced polyline and the node handles select the slider — never the empty
+        // space of its bounding box.
+        foreach (var path in outlinePool)
+        {
+            if (path.ReceivePositionalInputAt(screenSpacePos))
+                return true;
+        }
+
+        if (head.ReceivePositionalInputAt(screenSpacePos))
+            return true;
+
+        foreach (var handle in nodeHandles)
+        {
+            if (handle.ReceivePositionalInputAt(screenSpacePos))
+                return true;
+        }
+
+        return false;
     }
 
     private void dragNode(int index, Vector2 screenSpacePosition)
@@ -188,7 +300,15 @@ internal partial class SliderSelectionBlueprint : BacSelectionBlueprint<SliderBo
         changeHandler?.EndChange();
     }
 
-    public override Quad SelectionQuad => ScreenSpaceDrawQuad;
+    // sizes only the framework's rectangular handle box — bound the whole (primary, unwrapped) polyline so
+    // the handles enclose the slider; selection itself is driven by ReceivePositionalInputAt, not this.
+    public override Quad SelectionQuad =>
+        primaryOutline != null && primaryOutline.Vertices.Count >= 2 ? primaryOutline.ScreenSpaceDrawQuad : ScreenSpaceDrawQuad;
 
     public override Vector2 ScreenSpaceSelectionPoint => head.ScreenSpaceDrawQuad.Centre;
+
+    /// <summary>Screen-space centre of the final (latest-time) node handle; the head when there are none.</summary>
+    public Vector2 FinalNodeScreenPosition => nodeHandles.Count > 0
+        ? nodeHandles[^1].ScreenSpaceDrawQuad.Centre
+        : head.ScreenSpaceDrawQuad.Centre;
 }

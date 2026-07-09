@@ -8,6 +8,7 @@ using osu.Game.Rulesets.BigAssCircle.Edit;
 using osu.Game.Rulesets.BigAssCircle.Objects;
 using osu.Game.Rulesets.Edit;
 using osu.Game.Rulesets.Objects;
+using osu.Game.Screens.Edit.Compose.Components;
 using osu.Game.Tests.Visual;
 using osuTK;
 using osuTK.Input;
@@ -223,6 +224,85 @@ namespace osu.Game.Rulesets.BigAssCircle.Tests
                 Editor.ChildrenOfType<Edit.Drawables.EditorDrawableSliderBody>()
                       .SingleOrDefault(d => d.HitObject == placedObject<SliderBody>())
                       ?.ChildrenOfType<osu.Framework.Graphics.Lines.SmoothPath>().Count() == 2);
+        }
+
+        [Test]
+        public void TestSliderSelectionIsPathPrecise()
+        {
+            storeExistingObjects();
+            AddStep("select slider tool", () => InputManager.Key(Key.Number7));
+            // a diagonal slider: head at South (270°, early), one node at East (0°, later).
+            AddStep("move to body start", () => InputManager.MoveMouseTo(positionAtAngle(270, 0.7f)));
+            AddStep("click body", () => InputManager.Click(MouseButton.Left));
+            AddStep("move to node", () => InputManager.MoveMouseTo(positionAtAngle(0, 0.4f)));
+            AddStep("click node", () => InputManager.Click(MouseButton.Left));
+            AddStep("right click to commit", () => InputManager.Click(MouseButton.Right));
+            AddAssert("slider placed", () => placedObject<SliderBody>() != null);
+
+            AddUntilStep("wait for seek to slider", () => Precision.AlmostEquals(EditorClock.CurrentTime, placedObject<SliderBody>()!.StartTime, 1));
+            AddStep("switch to select tool", () => InputManager.Key(Key.Number1));
+
+            // a corner of the bounding box (head x, node y) is well off the diagonal line but inside its AABB.
+            AddStep("click empty space in bounds", () =>
+            {
+                var (headScreen, nodeScreen) = sliderEndsScreen();
+                InputManager.MoveMouseTo(new Vector2(headScreen.X, nodeScreen.Y));
+                InputManager.Click(MouseButton.Left);
+            });
+            AddAssert("slider NOT selected off-line", () => !EditorBeatmap.SelectedHitObjects.Contains(placedObject<SliderBody>()!));
+
+            // the midpoint of head→node lies on the segment.
+            AddStep("click on the line", () =>
+            {
+                var (headScreen, nodeScreen) = sliderEndsScreen();
+                InputManager.MoveMouseTo((headScreen + nodeScreen) / 2);
+                InputManager.Click(MouseButton.Left);
+            });
+            AddAssert("slider selected on-line", () => EditorBeatmap.SelectedHitObjects.SingleOrDefault() == placedObject<SliderBody>());
+        }
+
+        [Test]
+        public void TestSliderHidesSelectionBoxAndShowsChip()
+        {
+            storeExistingObjects();
+            AddStep("select slider tool", () => InputManager.Key(Key.Number7));
+            AddStep("move to body start", () => InputManager.MoveMouseTo(positionAtAngle(270, 0.7f)));
+            AddStep("click body", () => InputManager.Click(MouseButton.Left));
+            AddStep("move to node", () => InputManager.MoveMouseTo(positionAtAngle(0, 0.4f)));
+            AddStep("click node", () => InputManager.Click(MouseButton.Left));
+            AddStep("right click to commit", () => InputManager.Click(MouseButton.Right));
+            AddAssert("slider placed", () => placedObject<SliderBody>() != null);
+
+            AddUntilStep("wait for seek to slider", () => Precision.AlmostEquals(EditorClock.CurrentTime, placedObject<SliderBody>()!.StartTime, 1));
+            AddStep("switch to select tool", () => InputManager.Key(Key.Number1));
+
+            AddStep("select slider on its line", () =>
+            {
+                var (headScreen, nodeScreen) = sliderEndsScreen();
+                InputManager.MoveMouseTo((headScreen + nodeScreen) / 2);
+                InputManager.Click(MouseButton.Left);
+            });
+            AddAssert("slider selected", () => EditorBeatmap.SelectedHitObjects.SingleOrDefault() == placedObject<SliderBody>());
+
+            var handler = new System.Func<BacSelectionHandler>(() => Editor.ChildrenOfType<BacSelectionHandler>().Single());
+            AddUntilStep("compose selection box hidden", () => handler().ChildrenOfType<SelectionBox>().Single().Alpha == 0);
+            AddUntilStep("count chip shown", () => handler().ChildrenOfType<BacSelectionHandler.SliderCountChip>().Single().Alpha == 1);
+        }
+
+        /// <summary>Screen positions of a single-node slider's head and its node.</summary>
+        private (Vector2 head, Vector2 node) sliderEndsScreen()
+        {
+            var slider = placedObject<SliderBody>()!;
+            var cp = slider.Path.ControlPoints[0];
+            var container = playfield.HitObjectContainer;
+
+            Vector2 headScreen = container.ScreenSpacePositionAtTime(slider.StartTime);
+            headScreen.X = container.ToScreenSpace(new Vector2(EditorAngleMapping.ToX(slider.AngleDeg) * container.DrawWidth, 0)).X;
+
+            Vector2 nodeScreen = container.ScreenSpacePositionAtTime(slider.StartTime + cp.TimeOffset);
+            nodeScreen.X = container.ToScreenSpace(new Vector2(EditorAngleMapping.ToX(slider.AngleDeg + cp.RotationOffset) * container.DrawWidth, 0)).X;
+
+            return (headScreen, nodeScreen);
         }
 
         [Test]

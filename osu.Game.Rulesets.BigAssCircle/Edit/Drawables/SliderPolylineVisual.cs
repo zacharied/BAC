@@ -5,6 +5,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Lines;
 using osu.Framework.Graphics.Shapes;
+using osu.Framework.Statistics;
 using osu.Game.Rulesets.BigAssCircle.Objects;
 using osu.Game.Rulesets.UI;
 using osuTK;
@@ -29,6 +30,14 @@ internal partial class SliderPolylineVisual : CompositeDrawable
 
     private readonly List<Vector2> vertices = new List<Vector2>();
     private readonly List<int> wrapCopies = new List<int>();
+
+    // Wrap copies are pooled and reused: each copy owns a buffered SmoothPath (its own framebuffer), so
+    // recreating them per rebuild allocated a fresh framebuffer every frame during a node drag.
+    private readonly List<PathCopy> copyPool = new List<PathCopy>();
+
+    // Temporary diagnostic: watch this climb in the Ctrl+F2 global-statistics overlay. If it advances at
+    // frame rate while a slider merely sits selected, the vertex/copy early-out is thrashing.
+    private static readonly GlobalStatistic<int> rebuild_count = GlobalStatistics.Get<int>("BigAssCircle", "Slider polyline rebuilds");
 
     [Resolved]
     private Playfield playfield { get; set; } = null!;
@@ -63,33 +72,64 @@ internal partial class SliderPolylineVisual : CompositeDrawable
 
     private void rebuildCopies(float pxPerDeg)
     {
-        ClearInternal();
+        rebuild_count.Value++;
 
-        foreach (int k in wrapCopies)
+        for (int i = 0; i < wrapCopies.Count; i++)
         {
-            var copy = new Container
+            while (copyPool.Count <= i)
             {
-                RelativeSizeAxes = Axes.Both,
-                X = -k * 360 * pxPerDeg,
-            };
+                var created = new PathCopy();
+                copyPool.Add(created);
+                AddInternal(created);
+            }
 
-            var path = new SmoothPath { PathRadius = 3, Vertices = vertices };
+            copyPool[i].SetGeometry(vertices, -wrapCopies[i] * 360 * pxPerDeg);
+        }
+
+        // hide any pooled copies not needed this frame (cheaper than removing/recreating them).
+        for (int i = wrapCopies.Count; i < copyPool.Count; i++)
+            copyPool[i].ClearGeometry();
+    }
+
+    /// <summary>A single reusable wrap copy: a buffered path plus a dot per node. Geometry is set in place.</summary>
+    private partial class PathCopy : CompositeDrawable
+    {
+        private readonly SmoothPath path;
+        private readonly Container<Circle> markers;
+
+        public PathCopy()
+        {
+            RelativeSizeAxes = Axes.Both;
+            InternalChildren = new Drawable[]
+            {
+                path = new SmoothPath { PathRadius = 3 },
+                markers = new Container<Circle> { RelativeSizeAxes = Axes.Both },
+            };
+        }
+
+        public void SetGeometry(IReadOnlyList<Vector2> vertices, float offsetX)
+        {
+            Alpha = 1;
+            X = offsetX;
+
+            path.Vertices = vertices;
             // Path auto-sizes to its vertex bounds; undo the bounding-box offset so vertex coordinates
             // land in our local space (same idiom as the gameplay DrawableSliderBody).
             path.Position = -path.PositionInBoundingBox(Vector2.Zero);
-            copy.Add(path);
 
-            foreach (var v in vertices)
-            {
-                copy.Add(new Circle
-                {
-                    Size = new Vector2(10),
-                    Origin = Anchor.Centre,
-                    Position = v,
-                });
-            }
+            while (markers.Count > vertices.Count)
+                markers.Remove(markers[^1], true);
+            while (markers.Count < vertices.Count)
+                markers.Add(new Circle { Size = new Vector2(10), Origin = Anchor.Centre });
 
-            AddInternal(copy);
+            for (int i = 0; i < vertices.Count; i++)
+                markers[i].Position = vertices[i];
+        }
+
+        public void ClearGeometry()
+        {
+            Alpha = 0;
+            path.ClearVertices();
         }
     }
 

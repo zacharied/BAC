@@ -28,6 +28,11 @@ internal partial class SliderPlacementBlueprint : BacPlacementBlueprint<SliderBo
     private readonly Container previewPaths;
     private readonly EditSquarePiece cursorPiece;
 
+    // Paths are buffered drawables (each owns a framebuffer sized to its bounds), so they are pooled and
+    // reused rather than recreated per frame — newing them up every Update allocated a fresh framebuffer
+    // each frame, which ran memory into the tens of GB once a wide seam-crossing path was involved.
+    private readonly List<SmoothPath> previewPool = new List<SmoothPath>();
+
     private int cursorAngleDeg;
     private double cursorTime;
 
@@ -43,7 +48,9 @@ internal partial class SliderPlacementBlueprint : BacPlacementBlueprint<SliderBo
     {
         InternalChildren = new Drawable[]
         {
-            previewPaths = new Container { RelativeSizeAxes = Axes.Both },
+            // masked to the timeline bounds so preview lines don't spill outside it (they still show in
+            // the ghost bands, which lie within the bounds).
+            previewPaths = new Container { RelativeSizeAxes = Axes.Both, Masking = true },
             cursorPiece = new EditSquarePiece
             {
                 Size = new Vector2(EditorDrawableCardinalNote.NOTE_SIZE),
@@ -163,23 +170,35 @@ internal partial class SliderPlacementBlueprint : BacPlacementBlueprint<SliderBo
             }
         }
 
-        previewPaths.Clear();
+        int used = 0;
 
-        if (vertices.Count < 2)
-            return;
-
-        float headGridDeg = EditorAngleMapping.ToGridDegrees(HitObject.AngleDeg);
-
-        foreach (int k in EditorAngleMapping.VisibleWrapCopies(headGridDeg + minOffset, headGridDeg + maxOffset))
+        if (vertices.Count >= 2)
         {
-            var path = new SmoothPath
+            float headGridDeg = EditorAngleMapping.ToGridDegrees(HitObject.AngleDeg);
+
+            foreach (int k in EditorAngleMapping.VisibleWrapCopies(headGridDeg + minOffset, headGridDeg + maxOffset))
             {
-                PathRadius = 3,
-                Vertices = vertices,
-                X = -k * 360 * pxPerDeg,
-            };
-            path.Position += -path.PositionInBoundingBox(Vector2.Zero);
+                var path = poolPath(used++);
+                path.Vertices = vertices;
+                // undo the auto-size bounding-box offset (so vertices land in local space), then shift by the wrap copy.
+                path.Position = -path.PositionInBoundingBox(Vector2.Zero) + new Vector2(-k * 360 * pxPerDeg, 0);
+            }
+        }
+
+        // clear (but keep) any pooled paths not needed this frame — an empty path draws nothing.
+        for (int i = used; i < previewPool.Count; i++)
+            previewPool[i].ClearVertices();
+    }
+
+    private SmoothPath poolPath(int index)
+    {
+        while (previewPool.Count <= index)
+        {
+            var path = new SmoothPath { PathRadius = 3 };
+            previewPool.Add(path);
             previewPaths.Add(path);
         }
+
+        return previewPool[index];
     }
 }

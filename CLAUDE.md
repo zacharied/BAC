@@ -277,6 +277,22 @@ circle unrolled**.
   on-grid position (one handle per node; copies are visual only), and the placement rubber-band previews
   at the unwrapped `MinimalDiff` continuation (what the commit would produce), not the raw cursor x.
   Paths are positioned with `path.Position = -path.PositionInBoundingBox(Vector2.Zero)`.
+- **Slider path rendering perf (learn before touching slider visuals).** `Path`/`SmoothPath` is an
+  `IBufferedDrawable`: **each instance owns a framebuffer** sized to its vertex bounds, so **never `new` a
+  path per frame** — recreating them each `Update` allocated a fresh (up to window-sized) framebuffer
+  every frame and ran memory into the tens of GB once a wide seam-crossing path existed. Both draw paths
+  are **pooled/reused**: `SliderPolylineVisual` reconciles a `PathCopy` pool (buffered path + node dots
+  per wrap copy, geometry set in place, surplus hidden), and `SliderPlacementBlueprint` reuses a
+  `SmoothPath` pool (`ClearVertices()` on the unused ones). A `GlobalStatistic<int>` **"Slider polyline
+  rebuilds"** counter (visible in the Ctrl+F2 overlay) stays as a diagnostic — it should not advance while
+  a slider merely sits.
+- **Slider lines are clipped to the timeline by MASKING, not vertex clipping.** Wrap copies extend past
+  the grid edges; they're kept inside the timeline by `Masking = true` on the `HitObjectContainer`'s
+  wrapper (committed sliders) and on the placement preview container. The ghost bands lie *within* the
+  bounds so their clones still show. This is purely cosmetic: `BufferedDrawNode` already clips each path's
+  framebuffer to the **root node** (the whole window, `clipToRootNode: true`), so an ancestor mask does
+  **not** shrink the framebuffer. Actually reducing a wide path's framebuffer needs per-segment vertex
+  clipping against the x-band (as the gameplay path does) — deferred.
 - **Blueprints** (`Edit/Blueprints/`): placement base `BacPlacementBlueprint<T>` writes snapped
   angle+time while `Waiting`; `InstantPlacementBlueprint` (cardinal/slams) places on click; hold = mania's
   click-drag-release duration pattern; shoulder picks the `Side` whose strip is angularly nearer;
@@ -286,6 +302,20 @@ circle unrolled**.
   twin outline and hit-testing via *translating the query point back onto the main copy* in
   `ReceivePositionalInputAt`. `ReplacesExistingObject` is scoped to same-angle (same-side for shoulders) —
   the framework default would delete *any* object sharing the beat.
+- **What selects an object vs. what the yellow box is (don't confuse them).** Click-to-select is driven
+  entirely by `blueprint.IsHovered` ⇐ **`ReceivePositionalInputAt`**; drag-box select uses the single
+  `ScreenSpaceSelectionPoint`. The **yellow box is the framework `SelectionBox`** (a bordered `Container`
+  with the rotate/scale handles) sized to the `RectangleF.Union` of every selected blueprint's
+  **`SelectionQuad.AABBFloat`** — it is *necessarily an axis-aligned rectangle* and it **never** drives
+  selection. So `SliderSelectionBlueprint` is **path-precise**: it traces a yellow outline over the actual
+  polyline (unwrapped `RotationOffset` + wrap copies, pooled `SmoothPath`s kept current every frame even
+  while deselected because they *are* the hit-test surface — `outline_radius` = both thickness and click
+  tolerance), and overrides `ReceivePositionalInputAt` to report **only** those paths + node handles — so
+  clicking a segment/node selects but clicking empty space inside the bounding box falls through. Its
+  `SelectionQuad` bounds the primary (k=0) polyline purely to size the handle box; that can't cause false
+  clicks. `TwinXFraction()` is null (wrap copies cover the seam). To follow an object's shape, give the
+  blueprint a shaped outline + precise `ReceivePositionalInputAt` — never try to make the `SelectionBox`
+  itself a polygon.
 - **Selection movement** (`BacSelectionHandler.HandleMovement`) converts the x screen-delta to whole
   degrees and rotates every selected `IHasMutableAngle` (mod 360 — no clamping; the axis wraps). Edge slam
   direction is a ternary context-menu item ("Anticlockwise").
@@ -295,7 +325,8 @@ circle unrolled**.
   judgement line at the bottom), so tests wait for the seek and target `screenPositionOf(hitObject)`.
 - **Not yet done:** saving (the legacy `.osu` encoder can't roundtrip BAC objects — needs a legacy-field
   mapping), slider `Side` selection in the editor (always Left), hold/slider twin drag handles (main copy
-  only), z-ordering sliders above notes.
+  only), z-ordering sliders above notes, per-segment vertex clipping of slider paths (only masked for now,
+  so wide seam-crossing paths still allocate large framebuffers).
 
 ## Gotchas / patterns (each cost a debugging cycle)
 
