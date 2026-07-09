@@ -45,7 +45,7 @@ internal partial class SliderPlacementBlueprint : BacPlacementBlueprint<SliderBo
             cursorPiece = new EditSquarePiece
             {
                 Size = new Vector2(EditorDrawableCardinalNote.NOTE_SIZE),
-                Origin = Anchor.BottomCentre,
+                Origin = Anchor.Centre,
             },
         };
     }

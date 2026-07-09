@@ -19,6 +19,7 @@ internal partial class EditorDrawableSliderBody : EditorDrawableBacHitObject<Sli
         : base(hitObject)
     {
         Width = EditorDrawableCardinalNote.NOTE_SIZE;
+        Origin = Anchor.BottomCentre;
         AddInternal(nestedContainer = new Container { RelativeSizeAxes = Axes.Both });
     }
 

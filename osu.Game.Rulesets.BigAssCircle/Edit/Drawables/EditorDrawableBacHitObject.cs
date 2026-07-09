@@ -30,7 +30,9 @@ internal abstract partial class EditorDrawableBacHitObject<T> : DrawableHitObjec
         : base(hitObject)
     {
         Anchor = Anchor.BottomLeft;
-        Origin = Anchor.BottomCentre;
+        // Single-press sprites straddle their time line; duration objects override to BottomCentre so
+        // the container-set height spans start → end exactly.
+        Origin = Anchor.Centre;
         RelativePositionAxes = Axes.X;
     }
 

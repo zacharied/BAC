@@ -47,12 +47,12 @@ internal partial class HoldNotePlacementBlueprint : BacPlacementBlueprint<HoldNo
             },
             headPiece = new EditSquarePiece
             {
-                Origin = Anchor.BottomCentre,
+                Origin = Anchor.Centre,
                 Size = new Vector2(EditorDrawableCardinalNote.NOTE_SIZE),
             },
             tailPiece = new EditSquarePiece
             {
-                Origin = Anchor.BottomCentre,
+                Origin = Anchor.Centre,
                 Size = new Vector2(EditorDrawableCardinalNote.NOTE_SIZE, 10),
             },
         };

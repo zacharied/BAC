@@ -32,7 +32,9 @@ internal abstract partial class BacSelectionBlueprint<T> : HitObjectSelectionBlu
         : base(hitObject)
     {
         RelativeSizeAxes = Axes.None;
-        Origin = Anchor.BottomCentre;
+        // Matches the drawables: single-press outlines straddle their time line; duration blueprints
+        // override to BottomCentre so their height spans start → end exactly.
+        Origin = Anchor.Centre;
     }
 
     protected override void Update()

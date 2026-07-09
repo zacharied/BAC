@@ -39,6 +39,7 @@ internal partial class SliderSelectionBlueprint : BacSelectionBlueprint<SliderBo
         : base(slider)
     {
         Width = EditorDrawableCardinalNote.NOTE_SIZE;
+        Origin = Anchor.BottomCentre;
     }
 
     [BackgroundDependencyLoader]
@@ -51,7 +52,7 @@ internal partial class SliderSelectionBlueprint : BacSelectionBlueprint<SliderBo
                 RelativeSizeAxes = Axes.X,
                 Height = EditorDrawableCardinalNote.NOTE_SIZE,
                 Anchor = Anchor.BottomCentre,
-                Origin = Anchor.BottomCentre,
+                Origin = Anchor.Centre,
             },
             nodeHandles = new Container<NodeDragPiece> { RelativeSizeAxes = Axes.Both },
         };

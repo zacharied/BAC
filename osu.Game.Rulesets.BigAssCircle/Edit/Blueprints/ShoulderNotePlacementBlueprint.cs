@@ -34,7 +34,7 @@ internal partial class ShoulderNotePlacementBlueprint : HitObjectPlacementBluepr
         InternalChild = piece = new EditSquarePiece
         {
             Size = new Vector2(EditorDrawableCardinalNote.NOTE_SIZE),
-            Origin = Anchor.BottomCentre,
+            Origin = Anchor.Centre,
             Colour = Color4.MediumPurple,
         };
     }

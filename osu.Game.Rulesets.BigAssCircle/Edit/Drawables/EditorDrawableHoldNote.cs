@@ -23,6 +23,7 @@ internal partial class EditorDrawableHoldNote : EditorDrawableBacHitObject<HoldN
         : base(hitObject)
     {
         Width = EditorDrawableCardinalNote.NOTE_SIZE;
+        Origin = Anchor.BottomCentre;
         AddInternal(nestedContainer = new Container { RelativeSizeAxes = Axes.Both });
     }
 
@@ -45,7 +46,7 @@ internal partial class EditorDrawableHoldNote : EditorDrawableBacHitObject<HoldN
                 RelativeSizeAxes = Axes.None,
                 Size = new Vector2(EditorDrawableCardinalNote.NOTE_SIZE),
                 Anchor = Anchor.BottomCentre,
-                Origin = Anchor.BottomCentre,
+                Origin = Anchor.Centre,
             },
         },
     };

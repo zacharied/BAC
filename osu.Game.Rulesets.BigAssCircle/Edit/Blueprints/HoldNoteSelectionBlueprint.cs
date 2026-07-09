@@ -30,6 +30,7 @@ internal partial class HoldNoteSelectionBlueprint : BacSelectionBlueprint<HoldNo
         : base(hold)
     {
         Width = EditorDrawableCardinalNote.NOTE_SIZE;
+        Origin = Anchor.BottomCentre;
     }
 
     [BackgroundDependencyLoader]
@@ -43,7 +44,7 @@ internal partial class HoldNoteSelectionBlueprint : BacSelectionBlueprint<HoldNo
                 RelativeSizeAxes = Axes.X,
                 Height = EditorDrawableCardinalNote.NOTE_SIZE,
                 Anchor = Anchor.BottomCentre,
-                Origin = Anchor.BottomCentre,
+                Origin = Anchor.Centre,
                 DragStarted = () => changeHandler?.BeginChange(),
                 Dragging = pos =>
                 {
@@ -64,7 +65,7 @@ internal partial class HoldNoteSelectionBlueprint : BacSelectionBlueprint<HoldNo
                 RelativeSizeAxes = Axes.X,
                 Height = 10,
                 Anchor = Anchor.TopCentre,
-                Origin = Anchor.TopCentre,
+                Origin = Anchor.Centre,
                 DragStarted = () => changeHandler?.BeginChange(),
                 Dragging = pos =>
                 {

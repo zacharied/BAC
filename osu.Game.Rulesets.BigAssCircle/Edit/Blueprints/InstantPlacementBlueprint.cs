@@ -24,7 +24,7 @@ internal abstract partial class InstantPlacementBlueprint<T> : BacPlacementBluep
         InternalChild = piece = new EditSquarePiece
         {
             Size = new Vector2(EditorDrawableCardinalNote.NOTE_SIZE),
-            Origin = Anchor.BottomCentre,
+            Origin = Anchor.Centre,
         };
     }
 
